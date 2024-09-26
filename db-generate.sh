@@ -29,3 +29,8 @@ awk '
 ' > schema.sql
 
 unset PGPASSWORD
+
+echo "Generating new Query functions"
+sqlc generate
+
+echo "Generated succesfully"
