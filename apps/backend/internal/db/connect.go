@@ -1,47 +1,43 @@
 package db
 
-// import (
-// 	"database/sql"
-// 	"fmt"
+import (
+	"context"
+	"fmt"
 
-// 	"github.com/jackc/pgx/v5"
-// 	_ "github.com/lib/pq"
-// )
+	"github.com/jackc/pgx/v5"
+	_ "github.com/lib/pq"
+)
 
-// type DB struct {
-// 	*sql.DB
-// }
-// type DBConfig struct {
-// 	Host     string
-// 	Port     string
-// 	User     string
-// 	Password string
-// 	Dbname   string
-// }
+type DB struct {
+	*pgx.Conn
+}
 
-// func Connect(db_conf DBConfig) *pgx.DB {
-// 	// psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
-// 	// 	"password=%s dbname=%s sslmode=disable",
-// 	// 	db_conf.Host, db_conf.Port, db_conf.User, db_conf.Password, db_conf.Dbname)
-// 	// db, err := sql.Open("postgres", psqlInfo)
-// 	// if err != nil {
-// 	// 	panic(err)
-// 	// }
-// 	// defer db.Close()
+type DBConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Dbname   string
+}
 
-// 	conn, err := pgx.Connect(ctx, "user=pqgotest dbname=pqgotest sslmode=verify-full")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer conn.Close(ctx)
+func Connect(config DBConfig) (*DB, error) {
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		config.Host, config.Port, config.User, config.Password, config.Dbname)
 
-// 	err = db.Ping()
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	ctx := context.Background()
 
-// 	fmt.Println("Successfully connected!")
-// 	return &DB{
-// 		DB: db,
-// 	}
-// }
+	conn, err := pgx.Connect(ctx, psqlInfo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = conn.Ping(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &DB{conn}, nil
+}
