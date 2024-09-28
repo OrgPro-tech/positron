@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/OrgPro-tech/positron/backend/internal/api/routes"
@@ -10,7 +11,7 @@ import (
 
 func main() {
 	envConfig := config.NewConfig()
-
+	fmt.Printf("envConfig: %v\n", envConfig)
 	dbConn, err := db.Connect(db.DBConfig{
 		Host:     envConfig.Host,
 		Port:     envConfig.DB_Port,
@@ -26,7 +27,7 @@ func main() {
 	queries := db.New(dbConn)
 
 	server := routes.NewApiServer(envConfig, dbConn, queries)
-
+	server.InitializeRoutes()
 	log.Fatal(server.App.Listen(":" + envConfig.ServerPort))
 
 }

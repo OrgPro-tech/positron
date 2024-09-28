@@ -4,9 +4,66 @@
 
 package db
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Business struct {
+	ID                        string
+	ContactPersonName         string
+	ContactPersonEmail        string
+	ContactPersonMobileNumber int32
+	CompanyName               string
+	Address                   string
+	Pin                       int32
+	City                      string
+	State                     string
+	Country                   string
+	BusinessType              string
+	Gst                       pgtype.Text
+	Pan                       pgtype.Text
+	BankAccountNumber         pgtype.Text
+	BankName                  pgtype.Text
+	IfscCode                  pgtype.Text
+	AccountType               pgtype.Text
+	AccountHolderName         pgtype.Text
+}
+
+type Outlet struct {
+	ID            string
+	OutletName    string
+	OutletAddress string
+	OutletPin     int32
+	OutletCity    string
+	OutletState   string
+	OutletCountry string
+	BusinessID    pgtype.Text
+}
+
 type User struct {
-	ID       int32
-	Name     string
-	Email    string
-	Password string
+	ID           string
+	Name         string
+	Email        string
+	Password     string
+	MobileNumber int32
+	UserType     interface{}
+	Username     string
+	BusinessID   pgtype.Text
+	OutletID     pgtype.Text
+}
+
+type UserOutlet struct {
+	ID         string
+	UserID     string
+	BusinessID string
+	OutletID   string
+}
+
+type UserSession struct {
+	ID           string
+	UserID       string
+	AccessToken  string
+	RefreshToken string
+	ExpireAt     pgtype.Timestamp
+	CreatedAt    pgtype.Timestamp
 }

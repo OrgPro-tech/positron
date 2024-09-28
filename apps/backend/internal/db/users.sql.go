@@ -7,7 +7,338 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createBusiness = `-- name: CreateBusiness :one
+INSERT INTO businesses (
+  contact_person_name, contact_person_email, contact_person_mobile_number,
+  company_name, address, pin, city, state, country, business_type,
+  gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+)
+RETURNING id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name
+`
+
+type CreateBusinessParams struct {
+	ContactPersonName         string
+	ContactPersonEmail        string
+	ContactPersonMobileNumber int32
+	CompanyName               string
+	Address                   string
+	Pin                       int32
+	City                      string
+	State                     string
+	Country                   string
+	BusinessType              string
+	Gst                       pgtype.Text
+	Pan                       pgtype.Text
+	BankAccountNumber         pgtype.Text
+	BankName                  pgtype.Text
+	IfscCode                  pgtype.Text
+	AccountType               pgtype.Text
+	AccountHolderName         pgtype.Text
+}
+
+func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
+	row := q.db.QueryRow(ctx, createBusiness,
+		arg.ContactPersonName,
+		arg.ContactPersonEmail,
+		arg.ContactPersonMobileNumber,
+		arg.CompanyName,
+		arg.Address,
+		arg.Pin,
+		arg.City,
+		arg.State,
+		arg.Country,
+		arg.BusinessType,
+		arg.Gst,
+		arg.Pan,
+		arg.BankAccountNumber,
+		arg.BankName,
+		arg.IfscCode,
+		arg.AccountType,
+		arg.AccountHolderName,
+	)
+	var i Business
+	err := row.Scan(
+		&i.ID,
+		&i.ContactPersonName,
+		&i.ContactPersonEmail,
+		&i.ContactPersonMobileNumber,
+		&i.CompanyName,
+		&i.Address,
+		&i.Pin,
+		&i.City,
+		&i.State,
+		&i.Country,
+		&i.BusinessType,
+		&i.Gst,
+		&i.Pan,
+		&i.BankAccountNumber,
+		&i.BankName,
+		&i.IfscCode,
+		&i.AccountType,
+		&i.AccountHolderName,
+	)
+	return i, err
+}
+
+const createOutlet = `-- name: CreateOutlet :one
+INSERT INTO outlets (
+  outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state,
+  outlet_country, business_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id
+`
+
+type CreateOutletParams struct {
+	OutletName    string
+	OutletAddress string
+	OutletPin     int32
+	OutletCity    string
+	OutletState   string
+	OutletCountry string
+	BusinessID    pgtype.Text
+}
+
+func (q *Queries) CreateOutlet(ctx context.Context, arg CreateOutletParams) (Outlet, error) {
+	row := q.db.QueryRow(ctx, createOutlet,
+		arg.OutletName,
+		arg.OutletAddress,
+		arg.OutletPin,
+		arg.OutletCity,
+		arg.OutletState,
+		arg.OutletCountry,
+		arg.BusinessID,
+	)
+	var i Outlet
+	err := row.Scan(
+		&i.ID,
+		&i.OutletName,
+		&i.OutletAddress,
+		&i.OutletPin,
+		&i.OutletCity,
+		&i.OutletState,
+		&i.OutletCountry,
+		&i.BusinessID,
+	)
+	return i, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+  username, password, email, name, mobile_number, user_type, business_id, outlet_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8
+)
+RETURNING id, name, email, password, mobile_number, user_type, username, business_id, outlet_id
+`
+
+type CreateUserParams struct {
+	Username     string
+	Password     string
+	Email        string
+	Name         string
+	MobileNumber int32
+	UserType     interface{}
+	BusinessID   pgtype.Text
+	OutletID     pgtype.Text
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Username,
+		arg.Password,
+		arg.Email,
+		arg.Name,
+		arg.MobileNumber,
+		arg.UserType,
+		arg.BusinessID,
+		arg.OutletID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.MobileNumber,
+		&i.UserType,
+		&i.Username,
+		&i.BusinessID,
+		&i.OutletID,
+	)
+	return i, err
+}
+
+const createUserOutlet = `-- name: CreateUserOutlet :one
+INSERT INTO user_outlets (
+  user_id, business_id, outlet_id
+) VALUES (
+  $1, $2, $3
+)
+RETURNING id, user_id, business_id, outlet_id
+`
+
+type CreateUserOutletParams struct {
+	UserID     string
+	BusinessID string
+	OutletID   string
+}
+
+func (q *Queries) CreateUserOutlet(ctx context.Context, arg CreateUserOutletParams) (UserOutlet, error) {
+	row := q.db.QueryRow(ctx, createUserOutlet, arg.UserID, arg.BusinessID, arg.OutletID)
+	var i UserOutlet
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BusinessID,
+		&i.OutletID,
+	)
+	return i, err
+}
+
+const createUserSession = `-- name: CreateUserSession :one
+INSERT INTO user_sessions (
+  user_id, access_token, refresh_token, expire_at
+) VALUES (
+  $1, $2, $3, $4
+)
+RETURNING id, user_id, access_token, refresh_token, expire_at, created_at
+`
+
+type CreateUserSessionParams struct {
+	UserID       string
+	AccessToken  string
+	RefreshToken string
+	ExpireAt     pgtype.Timestamp
+}
+
+func (q *Queries) CreateUserSession(ctx context.Context, arg CreateUserSessionParams) (UserSession, error) {
+	row := q.db.QueryRow(ctx, createUserSession,
+		arg.UserID,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.ExpireAt,
+	)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteBusiness = `-- name: DeleteBusiness :exec
+DELETE FROM businesses
+WHERE id = $1
+`
+
+func (q *Queries) DeleteBusiness(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteBusiness, id)
+	return err
+}
+
+const deleteOutlet = `-- name: DeleteOutlet :exec
+DELETE FROM outlets
+WHERE id = $1
+`
+
+func (q *Queries) DeleteOutlet(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteOutlet, id)
+	return err
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const deleteUserOutlet = `-- name: DeleteUserOutlet :exec
+DELETE FROM user_outlets
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUserOutlet(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteUserOutlet, id)
+	return err
+}
+
+const deleteUserSession = `-- name: DeleteUserSession :exec
+DELETE FROM user_sessions
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserSession(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, deleteUserSession, userID)
+	return err
+}
+
+const getBusinessByID = `-- name: GetBusinessByID :one
+SELECT id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name FROM businesses
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetBusinessByID(ctx context.Context, id string) (Business, error) {
+	row := q.db.QueryRow(ctx, getBusinessByID, id)
+	var i Business
+	err := row.Scan(
+		&i.ID,
+		&i.ContactPersonName,
+		&i.ContactPersonEmail,
+		&i.ContactPersonMobileNumber,
+		&i.CompanyName,
+		&i.Address,
+		&i.Pin,
+		&i.City,
+		&i.State,
+		&i.Country,
+		&i.BusinessType,
+		&i.Gst,
+		&i.Pan,
+		&i.BankAccountNumber,
+		&i.BankName,
+		&i.IfscCode,
+		&i.AccountType,
+		&i.AccountHolderName,
+	)
+	return i, err
+}
+
+const getOutletByID = `-- name: GetOutletByID :one
+SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id FROM outlets
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetOutletByID(ctx context.Context, id string) (Outlet, error) {
+	row := q.db.QueryRow(ctx, getOutletByID, id)
+	var i Outlet
+	err := row.Scan(
+		&i.ID,
+		&i.OutletName,
+		&i.OutletAddress,
+		&i.OutletPin,
+		&i.OutletCity,
+		&i.OutletState,
+		&i.OutletCountry,
+		&i.BusinessID,
+	)
+	return i, err
+}
 
 const getUser = `-- name: GetUser :one
 SELECT email, password from users where email = $1
@@ -25,12 +356,70 @@ func (q *Queries) GetUser(ctx context.Context, email string) (GetUserRow, error)
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, name, email, password, mobile_number, user_type, username, business_id, outlet_id FROM users
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.MobileNumber,
+		&i.UserType,
+		&i.Username,
+		&i.BusinessID,
+		&i.OutletID,
+	)
+	return i, err
+}
+
+const getUserOutletByID = `-- name: GetUserOutletByID :one
+SELECT id, user_id, business_id, outlet_id FROM user_outlets
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserOutletByID(ctx context.Context, id string) (UserOutlet, error) {
+	row := q.db.QueryRow(ctx, getUserOutletByID, id)
+	var i UserOutlet
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.BusinessID,
+		&i.OutletID,
+	)
+	return i, err
+}
+
+const getUserSessionByUserID = `-- name: GetUserSessionByUserID :one
+SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions
+WHERE user_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserSessionByUserID(ctx context.Context, userID string) (UserSession, error) {
+	row := q.db.QueryRow(ctx, getUserSessionByUserID, userID)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUsers = `-- name: GetUsers :many
 SELECT id, name from users where 1
 `
 
 type GetUsersRow struct {
-	ID   int32
+	ID   string
 	Name string
 }
 
@@ -52,4 +441,345 @@ func (q *Queries) GetUsers(ctx context.Context) ([]GetUsersRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listBusinesses = `-- name: ListBusinesses :many
+SELECT id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name FROM businesses
+ORDER BY company_name
+`
+
+func (q *Queries) ListBusinesses(ctx context.Context) ([]Business, error) {
+	rows, err := q.db.Query(ctx, listBusinesses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Business
+	for rows.Next() {
+		var i Business
+		if err := rows.Scan(
+			&i.ID,
+			&i.ContactPersonName,
+			&i.ContactPersonEmail,
+			&i.ContactPersonMobileNumber,
+			&i.CompanyName,
+			&i.Address,
+			&i.Pin,
+			&i.City,
+			&i.State,
+			&i.Country,
+			&i.BusinessType,
+			&i.Gst,
+			&i.Pan,
+			&i.BankAccountNumber,
+			&i.BankName,
+			&i.IfscCode,
+			&i.AccountType,
+			&i.AccountHolderName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutlets = `-- name: ListOutlets :many
+SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id FROM outlets
+WHERE business_id = $1
+`
+
+func (q *Queries) ListOutlets(ctx context.Context, businessID pgtype.Text) ([]Outlet, error) {
+	rows, err := q.db.Query(ctx, listOutlets, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Outlet
+	for rows.Next() {
+		var i Outlet
+		if err := rows.Scan(
+			&i.ID,
+			&i.OutletName,
+			&i.OutletAddress,
+			&i.OutletPin,
+			&i.OutletCity,
+			&i.OutletState,
+			&i.OutletCountry,
+			&i.BusinessID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserOutlets = `-- name: ListUserOutlets :many
+SELECT id, user_id, business_id, outlet_id FROM user_outlets
+WHERE user_id = $1
+`
+
+func (q *Queries) ListUserOutlets(ctx context.Context, userID string) ([]UserOutlet, error) {
+	rows, err := q.db.Query(ctx, listUserOutlets, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserOutlet
+	for rows.Next() {
+		var i UserOutlet
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.BusinessID,
+			&i.OutletID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, name, email, password, mobile_number, user_type, username, business_id, outlet_id FROM users
+ORDER BY name
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Password,
+			&i.MobileNumber,
+			&i.UserType,
+			&i.Username,
+			&i.BusinessID,
+			&i.OutletID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateBusiness = `-- name: UpdateBusiness :one
+UPDATE businesses
+SET contact_person_name = $2, contact_person_email = $3, contact_person_mobile_number = $4,
+    company_name = $5, address = $6, pin = $7, city = $8, state = $9, country = $10,
+    business_type = $11, gst = $12, pan = $13, bank_account_number = $14, bank_name = $15,
+    ifsc_code = $16, account_type = $17, account_holder_name = $18
+WHERE id = $1
+RETURNING id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name
+`
+
+type UpdateBusinessParams struct {
+	ID                        string
+	ContactPersonName         string
+	ContactPersonEmail        string
+	ContactPersonMobileNumber int32
+	CompanyName               string
+	Address                   string
+	Pin                       int32
+	City                      string
+	State                     string
+	Country                   string
+	BusinessType              string
+	Gst                       pgtype.Text
+	Pan                       pgtype.Text
+	BankAccountNumber         pgtype.Text
+	BankName                  pgtype.Text
+	IfscCode                  pgtype.Text
+	AccountType               pgtype.Text
+	AccountHolderName         pgtype.Text
+}
+
+func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) (Business, error) {
+	row := q.db.QueryRow(ctx, updateBusiness,
+		arg.ID,
+		arg.ContactPersonName,
+		arg.ContactPersonEmail,
+		arg.ContactPersonMobileNumber,
+		arg.CompanyName,
+		arg.Address,
+		arg.Pin,
+		arg.City,
+		arg.State,
+		arg.Country,
+		arg.BusinessType,
+		arg.Gst,
+		arg.Pan,
+		arg.BankAccountNumber,
+		arg.BankName,
+		arg.IfscCode,
+		arg.AccountType,
+		arg.AccountHolderName,
+	)
+	var i Business
+	err := row.Scan(
+		&i.ID,
+		&i.ContactPersonName,
+		&i.ContactPersonEmail,
+		&i.ContactPersonMobileNumber,
+		&i.CompanyName,
+		&i.Address,
+		&i.Pin,
+		&i.City,
+		&i.State,
+		&i.Country,
+		&i.BusinessType,
+		&i.Gst,
+		&i.Pan,
+		&i.BankAccountNumber,
+		&i.BankName,
+		&i.IfscCode,
+		&i.AccountType,
+		&i.AccountHolderName,
+	)
+	return i, err
+}
+
+const updateOutlet = `-- name: UpdateOutlet :one
+UPDATE outlets
+SET outlet_name = $2, outlet_address = $3, outlet_pin = $4, outlet_city = $5,
+    outlet_state = $6, outlet_country = $7, business_id = $8
+WHERE id = $1
+RETURNING id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id
+`
+
+type UpdateOutletParams struct {
+	ID            string
+	OutletName    string
+	OutletAddress string
+	OutletPin     int32
+	OutletCity    string
+	OutletState   string
+	OutletCountry string
+	BusinessID    pgtype.Text
+}
+
+func (q *Queries) UpdateOutlet(ctx context.Context, arg UpdateOutletParams) (Outlet, error) {
+	row := q.db.QueryRow(ctx, updateOutlet,
+		arg.ID,
+		arg.OutletName,
+		arg.OutletAddress,
+		arg.OutletPin,
+		arg.OutletCity,
+		arg.OutletState,
+		arg.OutletCountry,
+		arg.BusinessID,
+	)
+	var i Outlet
+	err := row.Scan(
+		&i.ID,
+		&i.OutletName,
+		&i.OutletAddress,
+		&i.OutletPin,
+		&i.OutletCity,
+		&i.OutletState,
+		&i.OutletCountry,
+		&i.BusinessID,
+	)
+	return i, err
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET username = $2, email = $3, name = $4, mobile_number = $5, user_type = $6, 
+    business_id = COALESCE($7, business_id), outlet_id = COALESCE($8, outlet_id)
+WHERE id = $1
+RETURNING id, name, email, password, mobile_number, user_type, username, business_id, outlet_id
+`
+
+type UpdateUserParams struct {
+	ID           string
+	Username     string
+	Email        string
+	Name         string
+	MobileNumber int32
+	UserType     interface{}
+	BusinessID   pgtype.Text
+	OutletID     pgtype.Text
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.ID,
+		arg.Username,
+		arg.Email,
+		arg.Name,
+		arg.MobileNumber,
+		arg.UserType,
+		arg.BusinessID,
+		arg.OutletID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Password,
+		&i.MobileNumber,
+		&i.UserType,
+		&i.Username,
+		&i.BusinessID,
+		&i.OutletID,
+	)
+	return i, err
+}
+
+const updateUserSession = `-- name: UpdateUserSession :one
+UPDATE user_sessions
+SET access_token = $2, refresh_token = $3, expire_at = $4
+WHERE user_id = $1
+RETURNING id, user_id, access_token, refresh_token, expire_at, created_at
+`
+
+type UpdateUserSessionParams struct {
+	UserID       string
+	AccessToken  string
+	RefreshToken string
+	ExpireAt     pgtype.Timestamp
+}
+
+func (q *Queries) UpdateUserSession(ctx context.Context, arg UpdateUserSessionParams) (UserSession, error) {
+	row := q.db.QueryRow(ctx, updateUserSession,
+		arg.UserID,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.ExpireAt,
+	)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
