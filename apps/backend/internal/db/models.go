@@ -5,65 +5,110 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type UserType string
+
+const (
+	UserTypeADMIN UserType = "ADMIN"
+	UserTypeUSER  UserType = "USER"
+)
+
+func (e *UserType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserType(s)
+	case string:
+		*e = UserType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserType: %T", src)
+	}
+	return nil
+}
+
+type NullUserType struct {
+	UserType UserType `json:"UserType"`
+	Valid    bool     `json:"valid"` // Valid is true if UserType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserType) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserType), nil
+}
+
 type Business struct {
-	ID                        string
-	ContactPersonName         string
-	ContactPersonEmail        string
-	ContactPersonMobileNumber int32
-	CompanyName               string
-	Address                   string
-	Pin                       int32
-	City                      string
-	State                     string
-	Country                   string
-	BusinessType              string
-	Gst                       pgtype.Text
-	Pan                       pgtype.Text
-	BankAccountNumber         pgtype.Text
-	BankName                  pgtype.Text
-	IfscCode                  pgtype.Text
-	AccountType               pgtype.Text
-	AccountHolderName         pgtype.Text
+	ID                        string      `json:"id"`
+	ContactPersonName         string      `json:"contact_person_name"`
+	ContactPersonEmail        string      `json:"contact_person_email"`
+	ContactPersonMobileNumber string      `json:"contact_person_mobile_number"`
+	CompanyName               string      `json:"company_name"`
+	Address                   string      `json:"address"`
+	Pin                       int32       `json:"pin"`
+	City                      string      `json:"city"`
+	State                     string      `json:"state"`
+	Country                   string      `json:"country"`
+	BusinessType              string      `json:"business_type"`
+	Gst                       pgtype.Text `json:"gst"`
+	Pan                       pgtype.Text `json:"pan"`
+	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
+	BankName                  pgtype.Text `json:"bank_name"`
+	IfscCode                  pgtype.Text `json:"ifsc_code"`
+	AccountType               pgtype.Text `json:"account_type"`
+	AccountHolderName         pgtype.Text `json:"account_holder_name"`
 }
 
 type Outlet struct {
-	ID            string
-	OutletName    string
-	OutletAddress string
-	OutletPin     int32
-	OutletCity    string
-	OutletState   string
-	OutletCountry string
-	BusinessID    pgtype.Text
+	ID            string      `json:"id"`
+	OutletName    string      `json:"outlet_name"`
+	OutletAddress string      `json:"outlet_address"`
+	OutletPin     int32       `json:"outlet_pin"`
+	OutletCity    string      `json:"outlet_city"`
+	OutletState   string      `json:"outlet_state"`
+	OutletCountry string      `json:"outlet_country"`
+	BusinessID    pgtype.Text `json:"business_id"`
 }
 
 type User struct {
-	ID           string
-	Name         string
-	Email        string
-	Password     string
-	MobileNumber int32
-	UserType     interface{}
-	Username     string
-	BusinessID   pgtype.Text
-	OutletID     pgtype.Text
+	ID           string      `json:"id"`
+	Name         string      `json:"name"`
+	Email        string      `json:"email"`
+	Password     string      `json:"password"`
+	MobileNumber string      `json:"mobile_number"`
+	UserType     UserType    `json:"user_type"`
+	Username     string      `json:"username"`
+	BusinessID   pgtype.Text `json:"business_id"`
+	OutletID     pgtype.Text `json:"outlet_id"`
 }
 
 type UserOutlet struct {
-	ID         string
-	UserID     string
-	BusinessID string
-	OutletID   string
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	BusinessID string `json:"business_id"`
+	OutletID   string `json:"outlet_id"`
 }
 
 type UserSession struct {
-	ID           string
-	UserID       string
-	AccessToken  string
-	RefreshToken string
-	ExpireAt     pgtype.Timestamp
-	CreatedAt    pgtype.Timestamp
+	ID           string           `json:"id"`
+	UserID       string           `json:"user_id"`
+	AccessToken  string           `json:"access_token"`
+	RefreshToken string           `json:"refresh_token"`
+	ExpireAt     pgtype.Timestamp `json:"expire_at"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
 }

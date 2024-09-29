@@ -17,7 +17,57 @@ INSERT INTO users (
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING *;
+RETURNING id;
+
+-- name: GetUserByUsernameOrEmail :one
+SELECT id, username, password, email, name,  user_type
+FROM users
+WHERE username = $1 OR email = $1
+LIMIT 1;
+
+-- name: CreateUserWithBusiness :one
+WITH inserted_business AS (
+    INSERT INTO businesses (
+        contact_person_name, contact_person_email, contact_person_mobile_number,
+        company_name, address, pin, city, state, country, business_type,
+        gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    ) RETURNING id
+)
+INSERT INTO users (
+    username, password, email, name, mobile_number, user_type, business_id
+) VALUES (
+    $18, $19, $20, $21, $22, $23, 
+    (SELECT id FROM inserted_business)
+) RETURNING id, username, email, name, mobile_number, user_type, business_id;
+   
+-- name: CreateUserWithBusinessAndOutlets :one
+   WITH inserted_business AS (
+    INSERT INTO businesses (
+        contact_person_name, contact_person_email, contact_person_mobile_number,
+        company_name, address, pin, city, state, country, business_type,
+        gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    ) RETURNING id
+), inserted_outlet AS (
+    INSERT INTO outlets (
+        outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id
+    ) VALUES (
+        $18, $19, $20, $21, $22, $23, (SELECT id FROM inserted_business)
+    ) RETURNING id
+)
+INSERT INTO users (
+    username, password, email, name, mobile_number, user_type, business_id, outlet_id
+) VALUES (
+    $24, $25, $26, $27, $28, $29::UserType, 
+    (SELECT id FROM inserted_business), 
+    (SELECT id FROM inserted_outlet)
+) RETURNING id, username, email, name, mobile_number, user_type, business_id, outlet_id;
+
+
+
 
 -- name: UpdateUser :one
 UPDATE users
@@ -130,3 +180,43 @@ RETURNING *;
 -- name: DeleteUserSession :exec
 DELETE FROM user_sessions
 WHERE user_id = $1;
+
+
+
+
+-- name: CreateOutletWithUserAssociation :one
+WITH new_outlet AS (
+    INSERT INTO outlets (
+        outlet_name,
+        outlet_address,
+        outlet_pin,
+        outlet_city,
+        outlet_state,
+        outlet_country,
+        business_id
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7
+    ) RETURNING *
+), new_user_outlet AS (
+    INSERT INTO user_outlets (
+        user_id,
+        business_id,
+        outlet_id
+    ) VALUES (
+        $8,
+        (SELECT business_id FROM new_outlet),
+        (SELECT id FROM new_outlet)
+    ) RETURNING *
+)
+SELECT 
+    o.id,
+    o.outlet_name,
+    o.outlet_address,
+    o.outlet_pin,
+    o.outlet_city,
+    o.outlet_state,
+    o.outlet_country,
+    o.business_id,
+    uo.id AS user_outlet_id
+FROM new_outlet o
+JOIN new_user_outlet uo ON o.id = uo.outlet_id;
