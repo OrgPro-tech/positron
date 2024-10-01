@@ -18,15 +18,7 @@ export PGPASSWORD="$DATABASE_PASSWORD"
 echo "Syncing Prisma with the Database"
 npx prisma migrate dev --skip-generate
 
-pg_dump --host=$DATABASE_HOST --username=$DATABASE_USERNAME --dbname=$DATABASE_NAME --port=$DATABASE_PORT --schema-only |
-sed -n '/^\(CREATE TABLE\|CREATE TYPE\)/,/);$/p' |
-sed '/^ALTER TABLE/d' |
-awk '
-    /^CREATE TABLE public\._prisma_migrations/ {skip=1; next}
-    /^\(CREATE TABLE\|CREATE TYPE\)/ {if (!skip) {print; in_def=1}; next}
-    /^);$/ {if (!skip) print; skip=0; in_def=0; next}
-    in_def {print}
-' > schema.sql
+pg_dump --host=$DATABASE_HOST --username=$DATABASE_USERNAME --dbname=$DATABASE_NAME --port=$DATABASE_PORT --schema-only | > schema.sql
 
 unset PGPASSWORD
 
