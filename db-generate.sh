@@ -16,7 +16,7 @@ load_env
 export PGPASSWORD="$DATABASE_PASSWORD"
 
 echo "Syncing Prisma with the Database"
-npx prisma migrate dev --skip-generate
+npx prisma migrate dev 
 
 pg_dump --host=$DATABASE_HOST --username=$DATABASE_USERNAME --dbname=$DATABASE_NAME --port=$DATABASE_PORT --schema-only | > schema.sql
 

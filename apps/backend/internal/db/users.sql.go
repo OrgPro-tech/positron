@@ -23,23 +23,23 @@ RETURNING id, contact_person_name, contact_person_email, contact_person_mobile_n
 `
 
 type CreateBusinessParams struct {
-	ContactPersonName         string      `json:"contact_person_name"`
-	ContactPersonEmail        string      `json:"contact_person_email"`
-	ContactPersonMobileNumber string      `json:"contact_person_mobile_number"`
-	CompanyName               string      `json:"company_name"`
-	Address                   string      `json:"address"`
-	Pin                       int32       `json:"pin"`
-	City                      string      `json:"city"`
-	State                     string      `json:"state"`
-	Country                   string      `json:"country"`
-	BusinessType              string      `json:"business_type"`
-	Gst                       pgtype.Text `json:"gst"`
-	Pan                       pgtype.Text `json:"pan"`
-	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
-	BankName                  pgtype.Text `json:"bank_name"`
-	IfscCode                  pgtype.Text `json:"ifsc_code"`
-	AccountType               pgtype.Text `json:"account_type"`
-	AccountHolderName         pgtype.Text `json:"account_holder_name"`
+	ContactPersonName         string `json:"contact_person_name"`
+	ContactPersonEmail        string `json:"contact_person_email"`
+	ContactPersonMobileNumber string `json:"contact_person_mobile_number"`
+	CompanyName               string `json:"company_name"`
+	Address                   string `json:"address"`
+	Pin                       int32  `json:"pin"`
+	City                      string `json:"city"`
+	State                     string `json:"state"`
+	Country                   string `json:"country"`
+	BusinessType              string `json:"business_type"`
+	Gst                       string `json:"gst"`
+	Pan                       string `json:"pan"`
+	BankAccountNumber         string `json:"bank_account_number"`
+	BankName                  string `json:"bank_name"`
+	IfscCode                  string `json:"ifsc_code"`
+	AccountType               string `json:"account_type"`
+	AccountHolderName         string `json:"account_holder_name"`
 }
 
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
@@ -97,13 +97,13 @@ RETURNING id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state
 `
 
 type CreateOutletParams struct {
-	OutletName    string      `json:"outlet_name"`
-	OutletAddress string      `json:"outlet_address"`
-	OutletPin     int32       `json:"outlet_pin"`
-	OutletCity    string      `json:"outlet_city"`
-	OutletState   string      `json:"outlet_state"`
-	OutletCountry string      `json:"outlet_country"`
-	BusinessID    pgtype.Text `json:"business_id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
+	BusinessID    int32  `json:"business_id"`
 }
 
 func (q *Queries) CreateOutlet(ctx context.Context, arg CreateOutletParams) (Outlet, error) {
@@ -169,26 +169,26 @@ JOIN new_user_outlet uo ON o.id = uo.outlet_id
 `
 
 type CreateOutletWithUserAssociationParams struct {
-	OutletName    string      `json:"outlet_name"`
-	OutletAddress string      `json:"outlet_address"`
-	OutletPin     int32       `json:"outlet_pin"`
-	OutletCity    string      `json:"outlet_city"`
-	OutletState   string      `json:"outlet_state"`
-	OutletCountry string      `json:"outlet_country"`
-	BusinessID    pgtype.Text `json:"business_id"`
-	UserID        string      `json:"user_id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
+	BusinessID    int32  `json:"business_id"`
+	UserID        int32  `json:"user_id"`
 }
 
 type CreateOutletWithUserAssociationRow struct {
-	ID            string      `json:"id"`
-	OutletName    string      `json:"outlet_name"`
-	OutletAddress string      `json:"outlet_address"`
-	OutletPin     int32       `json:"outlet_pin"`
-	OutletCity    string      `json:"outlet_city"`
-	OutletState   string      `json:"outlet_state"`
-	OutletCountry string      `json:"outlet_country"`
-	BusinessID    pgtype.Text `json:"business_id"`
-	UserOutletID  string      `json:"user_outlet_id"`
+	ID            int32  `json:"id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
+	BusinessID    int32  `json:"business_id"`
+	UserOutletID  int32  `json:"user_outlet_id"`
 }
 
 func (q *Queries) CreateOutletWithUserAssociation(ctx context.Context, arg CreateOutletWithUserAssociationParams) (CreateOutletWithUserAssociationRow, error) {
@@ -233,11 +233,11 @@ type CreateUserParams struct {
 	Name         string      `json:"name"`
 	MobileNumber string      `json:"mobile_number"`
 	UserType     UserType    `json:"user_type"`
-	BusinessID   pgtype.Text `json:"business_id"`
-	OutletID     pgtype.Text `json:"outlet_id"`
+	BusinessID   int32       `json:"business_id"`
+	OutletID     pgtype.Int4 `json:"outlet_id"`
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (string, error) {
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.Username,
 		arg.Password,
@@ -248,7 +248,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (string,
 		arg.BusinessID,
 		arg.OutletID,
 	)
-	var id string
+	var id int32
 	err := row.Scan(&id)
 	return id, err
 }
@@ -263,7 +263,7 @@ RETURNING id, user_id, business_id, outlet_id
 `
 
 type CreateUserOutletParams struct {
-	UserID     string `json:"user_id"`
+	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
 	OutletID   string `json:"outlet_id"`
 }
@@ -290,7 +290,7 @@ RETURNING id, user_id, access_token, refresh_token, expire_at, created_at
 `
 
 type CreateUserSessionParams struct {
-	UserID       string           `json:"user_id"`
+	UserID       int32            `json:"user_id"`
 	AccessToken  string           `json:"access_token"`
 	RefreshToken string           `json:"refresh_token"`
 	ExpireAt     pgtype.Timestamp `json:"expire_at"`
@@ -334,39 +334,39 @@ INSERT INTO users (
 `
 
 type CreateUserWithBusinessParams struct {
-	ContactPersonName         string      `json:"contact_person_name"`
-	ContactPersonEmail        string      `json:"contact_person_email"`
-	ContactPersonMobileNumber string      `json:"contact_person_mobile_number"`
-	CompanyName               string      `json:"company_name"`
-	Address                   string      `json:"address"`
-	Pin                       int32       `json:"pin"`
-	City                      string      `json:"city"`
-	State                     string      `json:"state"`
-	Country                   string      `json:"country"`
-	BusinessType              string      `json:"business_type"`
-	Gst                       pgtype.Text `json:"gst"`
-	Pan                       pgtype.Text `json:"pan"`
-	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
-	BankName                  pgtype.Text `json:"bank_name"`
-	IfscCode                  pgtype.Text `json:"ifsc_code"`
-	AccountType               pgtype.Text `json:"account_type"`
-	AccountHolderName         pgtype.Text `json:"account_holder_name"`
-	Username                  string      `json:"username"`
-	Password                  string      `json:"password"`
-	Email                     string      `json:"email"`
-	Name                      string      `json:"name"`
-	MobileNumber              string      `json:"mobile_number"`
-	UserType                  UserType    `json:"user_type"`
+	ContactPersonName         string   `json:"contact_person_name"`
+	ContactPersonEmail        string   `json:"contact_person_email"`
+	ContactPersonMobileNumber string   `json:"contact_person_mobile_number"`
+	CompanyName               string   `json:"company_name"`
+	Address                   string   `json:"address"`
+	Pin                       int32    `json:"pin"`
+	City                      string   `json:"city"`
+	State                     string   `json:"state"`
+	Country                   string   `json:"country"`
+	BusinessType              string   `json:"business_type"`
+	Gst                       string   `json:"gst"`
+	Pan                       string   `json:"pan"`
+	BankAccountNumber         string   `json:"bank_account_number"`
+	BankName                  string   `json:"bank_name"`
+	IfscCode                  string   `json:"ifsc_code"`
+	AccountType               string   `json:"account_type"`
+	AccountHolderName         string   `json:"account_holder_name"`
+	Username                  string   `json:"username"`
+	Password                  string   `json:"password"`
+	Email                     string   `json:"email"`
+	Name                      string   `json:"name"`
+	MobileNumber              string   `json:"mobile_number"`
+	UserType                  UserType `json:"user_type"`
 }
 
 type CreateUserWithBusinessRow struct {
-	ID           string      `json:"id"`
-	Username     string      `json:"username"`
-	Email        string      `json:"email"`
-	Name         string      `json:"name"`
-	MobileNumber string      `json:"mobile_number"`
-	UserType     UserType    `json:"user_type"`
-	BusinessID   pgtype.Text `json:"business_id"`
+	ID           int32    `json:"id"`
+	Username     string   `json:"username"`
+	Email        string   `json:"email"`
+	Name         string   `json:"name"`
+	MobileNumber string   `json:"mobile_number"`
+	UserType     UserType `json:"user_type"`
+	BusinessID   int32    `json:"business_id"`
 }
 
 func (q *Queries) CreateUserWithBusiness(ctx context.Context, arg CreateUserWithBusinessParams) (CreateUserWithBusinessRow, error) {
@@ -444,13 +444,13 @@ type CreateUserWithBusinessAndOutletsParams struct {
 	State                     string      `json:"state"`
 	Country                   string      `json:"country"`
 	BusinessType              string      `json:"business_type"`
-	Gst                       pgtype.Text `json:"gst"`
-	Pan                       pgtype.Text `json:"pan"`
-	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
-	BankName                  pgtype.Text `json:"bank_name"`
-	IfscCode                  pgtype.Text `json:"ifsc_code"`
-	AccountType               pgtype.Text `json:"account_type"`
-	AccountHolderName         pgtype.Text `json:"account_holder_name"`
+	Gst                       string      `json:"gst"`
+	Pan                       string      `json:"pan"`
+	BankAccountNumber         string      `json:"bank_account_number"`
+	BankName                  string      `json:"bank_name"`
+	IfscCode                  string      `json:"ifsc_code"`
+	AccountType               string      `json:"account_type"`
+	AccountHolderName         string      `json:"account_holder_name"`
 	OutletName                string      `json:"outlet_name"`
 	OutletAddress             string      `json:"outlet_address"`
 	OutletPin                 int32       `json:"outlet_pin"`
@@ -466,14 +466,14 @@ type CreateUserWithBusinessAndOutletsParams struct {
 }
 
 type CreateUserWithBusinessAndOutletsRow struct {
-	ID           string      `json:"id"`
+	ID           int32       `json:"id"`
 	Username     string      `json:"username"`
 	Email        string      `json:"email"`
 	Name         string      `json:"name"`
 	MobileNumber string      `json:"mobile_number"`
 	UserType     UserType    `json:"user_type"`
-	BusinessID   pgtype.Text `json:"business_id"`
-	OutletID     pgtype.Text `json:"outlet_id"`
+	BusinessID   int32       `json:"business_id"`
+	OutletID     pgtype.Int4 `json:"outlet_id"`
 }
 
 func (q *Queries) CreateUserWithBusinessAndOutlets(ctx context.Context, arg CreateUserWithBusinessAndOutletsParams) (CreateUserWithBusinessAndOutletsRow, error) {
@@ -527,7 +527,7 @@ DELETE FROM businesses
 WHERE id = $1
 `
 
-func (q *Queries) DeleteBusiness(ctx context.Context, id string) error {
+func (q *Queries) DeleteBusiness(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteBusiness, id)
 	return err
 }
@@ -537,7 +537,7 @@ DELETE FROM outlets
 WHERE id = $1
 `
 
-func (q *Queries) DeleteOutlet(ctx context.Context, id string) error {
+func (q *Queries) DeleteOutlet(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteOutlet, id)
 	return err
 }
@@ -547,7 +547,7 @@ DELETE FROM users
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id string) error {
+func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
@@ -557,7 +557,7 @@ DELETE FROM user_outlets
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUserOutlet(ctx context.Context, id string) error {
+func (q *Queries) DeleteUserOutlet(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteUserOutlet, id)
 	return err
 }
@@ -567,7 +567,7 @@ DELETE FROM user_sessions
 WHERE user_id = $1
 `
 
-func (q *Queries) DeleteUserSession(ctx context.Context, userID string) error {
+func (q *Queries) DeleteUserSession(ctx context.Context, userID int32) error {
 	_, err := q.db.Exec(ctx, deleteUserSession, userID)
 	return err
 }
@@ -577,7 +577,7 @@ SELECT id, contact_person_name, contact_person_email, contact_person_mobile_numb
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetBusinessByID(ctx context.Context, id string) (Business, error) {
+func (q *Queries) GetBusinessByID(ctx context.Context, id int32) (Business, error) {
 	row := q.db.QueryRow(ctx, getBusinessByID, id)
 	var i Business
 	err := row.Scan(
@@ -608,7 +608,7 @@ SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, o
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetOutletByID(ctx context.Context, id string) (Outlet, error) {
+func (q *Queries) GetOutletByID(ctx context.Context, id int32) (Outlet, error) {
 	row := q.db.QueryRow(ctx, getOutletByID, id)
 	var i Outlet
 	err := row.Scan(
@@ -645,7 +645,7 @@ SELECT id, name, email, password, mobile_number, user_type, username, business_i
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
@@ -670,7 +670,7 @@ LIMIT 1
 `
 
 type GetUserByUsernameOrEmailRow struct {
-	ID       string   `json:"id"`
+	ID       int32    `json:"id"`
 	Username string   `json:"username"`
 	Password string   `json:"password"`
 	Email    string   `json:"email"`
@@ -697,7 +697,7 @@ SELECT id, user_id, business_id, outlet_id FROM user_outlets
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserOutletByID(ctx context.Context, id string) (UserOutlet, error) {
+func (q *Queries) GetUserOutletByID(ctx context.Context, id int32) (UserOutlet, error) {
 	row := q.db.QueryRow(ctx, getUserOutletByID, id)
 	var i UserOutlet
 	err := row.Scan(
@@ -714,7 +714,7 @@ SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user
 WHERE user_id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUserSessionByUserID(ctx context.Context, userID string) (UserSession, error) {
+func (q *Queries) GetUserSessionByUserID(ctx context.Context, userID int32) (UserSession, error) {
 	row := q.db.QueryRow(ctx, getUserSessionByUserID, userID)
 	var i UserSession
 	err := row.Scan(
@@ -733,7 +733,7 @@ SELECT id, name from users where 1
 `
 
 type GetUsersRow struct {
-	ID   string `json:"id"`
+	ID   int32  `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -806,7 +806,7 @@ SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, o
 WHERE business_id = $1
 `
 
-func (q *Queries) ListOutlets(ctx context.Context, businessID pgtype.Text) ([]Outlet, error) {
+func (q *Queries) ListOutlets(ctx context.Context, businessID int32) ([]Outlet, error) {
 	rows, err := q.db.Query(ctx, listOutlets, businessID)
 	if err != nil {
 		return nil, err
@@ -840,7 +840,7 @@ SELECT id, user_id, business_id, outlet_id FROM user_outlets
 WHERE user_id = $1
 `
 
-func (q *Queries) ListUserOutlets(ctx context.Context, userID string) ([]UserOutlet, error) {
+func (q *Queries) ListUserOutlets(ctx context.Context, userID int32) ([]UserOutlet, error) {
 	rows, err := q.db.Query(ctx, listUserOutlets, userID)
 	if err != nil {
 		return nil, err
@@ -911,24 +911,24 @@ RETURNING id, contact_person_name, contact_person_email, contact_person_mobile_n
 `
 
 type UpdateBusinessParams struct {
-	ID                        string      `json:"id"`
-	ContactPersonName         string      `json:"contact_person_name"`
-	ContactPersonEmail        string      `json:"contact_person_email"`
-	ContactPersonMobileNumber string      `json:"contact_person_mobile_number"`
-	CompanyName               string      `json:"company_name"`
-	Address                   string      `json:"address"`
-	Pin                       int32       `json:"pin"`
-	City                      string      `json:"city"`
-	State                     string      `json:"state"`
-	Country                   string      `json:"country"`
-	BusinessType              string      `json:"business_type"`
-	Gst                       pgtype.Text `json:"gst"`
-	Pan                       pgtype.Text `json:"pan"`
-	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
-	BankName                  pgtype.Text `json:"bank_name"`
-	IfscCode                  pgtype.Text `json:"ifsc_code"`
-	AccountType               pgtype.Text `json:"account_type"`
-	AccountHolderName         pgtype.Text `json:"account_holder_name"`
+	ID                        int32  `json:"id"`
+	ContactPersonName         string `json:"contact_person_name"`
+	ContactPersonEmail        string `json:"contact_person_email"`
+	ContactPersonMobileNumber string `json:"contact_person_mobile_number"`
+	CompanyName               string `json:"company_name"`
+	Address                   string `json:"address"`
+	Pin                       int32  `json:"pin"`
+	City                      string `json:"city"`
+	State                     string `json:"state"`
+	Country                   string `json:"country"`
+	BusinessType              string `json:"business_type"`
+	Gst                       string `json:"gst"`
+	Pan                       string `json:"pan"`
+	BankAccountNumber         string `json:"bank_account_number"`
+	BankName                  string `json:"bank_name"`
+	IfscCode                  string `json:"ifsc_code"`
+	AccountType               string `json:"account_type"`
+	AccountHolderName         string `json:"account_holder_name"`
 }
 
 func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) (Business, error) {
@@ -978,21 +978,25 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 
 const updateOutlet = `-- name: UpdateOutlet :one
 UPDATE outlets
-SET outlet_name = $2, outlet_address = $3, outlet_pin = $4, outlet_city = $5,
-    outlet_state = $6, outlet_country = $7, business_id = $8
+SET 
+    outlet_name = COALESCE($2, outlet_name),
+    outlet_address = COALESCE($3, outlet_address),
+    outlet_pin = COALESCE($4, outlet_pin),
+    outlet_city = COALESCE($5, outlet_city),
+    outlet_state = COALESCE($6, outlet_state),
+    outlet_country = COALESCE($7, outlet_country)
 WHERE id = $1
 RETURNING id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id
 `
 
 type UpdateOutletParams struct {
-	ID            string      `json:"id"`
-	OutletName    string      `json:"outlet_name"`
-	OutletAddress string      `json:"outlet_address"`
-	OutletPin     int32       `json:"outlet_pin"`
-	OutletCity    string      `json:"outlet_city"`
-	OutletState   string      `json:"outlet_state"`
-	OutletCountry string      `json:"outlet_country"`
-	BusinessID    pgtype.Text `json:"business_id"`
+	ID            int32  `json:"id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
 }
 
 func (q *Queries) UpdateOutlet(ctx context.Context, arg UpdateOutletParams) (Outlet, error) {
@@ -1004,7 +1008,6 @@ func (q *Queries) UpdateOutlet(ctx context.Context, arg UpdateOutletParams) (Out
 		arg.OutletCity,
 		arg.OutletState,
 		arg.OutletCountry,
-		arg.BusinessID,
 	)
 	var i Outlet
 	err := row.Scan(
@@ -1029,14 +1032,14 @@ RETURNING id, name, email, password, mobile_number, user_type, username, busines
 `
 
 type UpdateUserParams struct {
-	ID           string      `json:"id"`
+	ID           int32       `json:"id"`
 	Username     string      `json:"username"`
 	Email        string      `json:"email"`
 	Name         string      `json:"name"`
 	MobileNumber string      `json:"mobile_number"`
 	UserType     UserType    `json:"user_type"`
-	BusinessID   pgtype.Text `json:"business_id"`
-	OutletID     pgtype.Text `json:"outlet_id"`
+	BusinessID   int32       `json:"business_id"`
+	OutletID     pgtype.Int4 `json:"outlet_id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
@@ -1073,7 +1076,7 @@ RETURNING id, user_id, access_token, refresh_token, expire_at, created_at
 `
 
 type UpdateUserSessionParams struct {
-	UserID       string           `json:"user_id"`
+	UserID       int32            `json:"user_id"`
 	AccessToken  string           `json:"access_token"`
 	RefreshToken string           `json:"refresh_token"`
 	ExpireAt     pgtype.Timestamp `json:"expire_at"`

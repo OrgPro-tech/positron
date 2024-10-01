@@ -54,59 +54,70 @@ func (ns NullUserType) Value() (driver.Value, error) {
 }
 
 type Business struct {
-	ID                        string      `json:"id"`
-	ContactPersonName         string      `json:"contact_person_name"`
-	ContactPersonEmail        string      `json:"contact_person_email"`
-	ContactPersonMobileNumber string      `json:"contact_person_mobile_number"`
-	CompanyName               string      `json:"company_name"`
-	Address                   string      `json:"address"`
-	Pin                       int32       `json:"pin"`
-	City                      string      `json:"city"`
-	State                     string      `json:"state"`
-	Country                   string      `json:"country"`
-	BusinessType              string      `json:"business_type"`
-	Gst                       pgtype.Text `json:"gst"`
-	Pan                       pgtype.Text `json:"pan"`
-	BankAccountNumber         pgtype.Text `json:"bank_account_number"`
-	BankName                  pgtype.Text `json:"bank_name"`
-	IfscCode                  pgtype.Text `json:"ifsc_code"`
-	AccountType               pgtype.Text `json:"account_type"`
-	AccountHolderName         pgtype.Text `json:"account_holder_name"`
+	ID                        int32  `json:"id"`
+	ContactPersonName         string `json:"contact_person_name"`
+	ContactPersonEmail        string `json:"contact_person_email"`
+	ContactPersonMobileNumber string `json:"contact_person_mobile_number"`
+	CompanyName               string `json:"company_name"`
+	Address                   string `json:"address"`
+	Pin                       int32  `json:"pin"`
+	City                      string `json:"city"`
+	State                     string `json:"state"`
+	Country                   string `json:"country"`
+	BusinessType              string `json:"business_type"`
+	Gst                       string `json:"gst"`
+	Pan                       string `json:"pan"`
+	BankAccountNumber         string `json:"bank_account_number"`
+	BankName                  string `json:"bank_name"`
+	IfscCode                  string `json:"ifsc_code"`
+	AccountType               string `json:"account_type"`
+	AccountHolderName         string `json:"account_holder_name"`
 }
 
 type Outlet struct {
-	ID            string      `json:"id"`
-	OutletName    string      `json:"outlet_name"`
-	OutletAddress string      `json:"outlet_address"`
-	OutletPin     int32       `json:"outlet_pin"`
-	OutletCity    string      `json:"outlet_city"`
-	OutletState   string      `json:"outlet_state"`
-	OutletCountry string      `json:"outlet_country"`
-	BusinessID    pgtype.Text `json:"business_id"`
+	ID            int32  `json:"id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
+	BusinessID    int32  `json:"business_id"`
+}
+
+type PrismaMigration struct {
+	ID                string             `json:"id"`
+	Checksum          string             `json:"checksum"`
+	FinishedAt        pgtype.Timestamptz `json:"finished_at"`
+	MigrationName     string             `json:"migration_name"`
+	Logs              pgtype.Text        `json:"logs"`
+	RolledBackAt      pgtype.Timestamptz `json:"rolled_back_at"`
+	StartedAt         pgtype.Timestamptz `json:"started_at"`
+	AppliedStepsCount int32              `json:"applied_steps_count"`
 }
 
 type User struct {
-	ID           string      `json:"id"`
+	ID           int32       `json:"id"`
 	Name         string      `json:"name"`
 	Email        string      `json:"email"`
 	Password     string      `json:"password"`
 	MobileNumber string      `json:"mobile_number"`
 	UserType     UserType    `json:"user_type"`
 	Username     string      `json:"username"`
-	BusinessID   pgtype.Text `json:"business_id"`
-	OutletID     pgtype.Text `json:"outlet_id"`
+	BusinessID   int32       `json:"business_id"`
+	OutletID     pgtype.Int4 `json:"outlet_id"`
 }
 
 type UserOutlet struct {
-	ID         string `json:"id"`
-	UserID     string `json:"user_id"`
+	ID         int32  `json:"id"`
+	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
 	OutletID   string `json:"outlet_id"`
 }
 
 type UserSession struct {
-	ID           string           `json:"id"`
-	UserID       string           `json:"user_id"`
+	ID           int32            `json:"id"`
+	UserID       int32            `json:"user_id"`
 	AccessToken  string           `json:"access_token"`
 	RefreshToken string           `json:"refresh_token"`
 	ExpireAt     pgtype.Timestamp `json:"expire_at"`

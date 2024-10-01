@@ -148,12 +148,6 @@ INSERT INTO outlets (
 )
 RETURNING *;
 
--- name: UpdateOutlet :one
-UPDATE outlets
-SET outlet_name = $2, outlet_address = $3, outlet_pin = $4, outlet_city = $5,
-    outlet_state = $6, outlet_country = $7, business_id = $8
-WHERE id = $1
-RETURNING *;
 
 -- name: DeleteOutlet :exec
 DELETE FROM outlets
@@ -220,3 +214,16 @@ SELECT
     uo.id AS user_outlet_id
 FROM new_outlet o
 JOIN new_user_outlet uo ON o.id = uo.outlet_id;
+
+
+-- name: UpdateOutlet :one
+UPDATE outlets
+SET 
+    outlet_name = COALESCE($2, outlet_name),
+    outlet_address = COALESCE($3, outlet_address),
+    outlet_pin = COALESCE($4, outlet_pin),
+    outlet_city = COALESCE($5, outlet_city),
+    outlet_state = COALESCE($6, outlet_state),
+    outlet_country = COALESCE($7, outlet_country)
+WHERE id = $1
+RETURNING *;
