@@ -12,8 +12,6 @@ CREATE TABLE "users" (
     "username" TEXT NOT NULL,
     "business_id" INTEGER NOT NULL,
     "outlet_id" INTEGER,
-    "businessId" INTEGER,
-    "outletId" INTEGER,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
