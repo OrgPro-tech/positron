@@ -44,7 +44,9 @@ func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server
 }
 
 func (s *Server) InitializeRoutes() {
-	s.App.Post("/please-login", func(c *fiber.Ctx) error {
+	v1 := s.App.Group("/v1/api")
+
+	v1.Post("/please-login", func(c *fiber.Ctx) error {
 		var email = "vaibhav@itday.in"
 		user, err := s.Queries.GetUser(context.Background(), email)
 
@@ -58,7 +60,8 @@ func (s *Server) InitializeRoutes() {
 		})
 	})
 
-	s.App.Post("/create-user", func(c *fiber.Ctx) error {
+	v1.Post("/create-user", func(c *fiber.Ctx) error {
+
 		type CreateUserWithBusinessParams struct {
 			User struct {
 				Username     string `json:"username" validate:"required"`
@@ -162,7 +165,7 @@ func (s *Server) InitializeRoutes() {
 		// return c.Status(fiber.StatusCreated).JSON((createdUser))
 	},
 	)
-	s.App.Post("/login", func(c *fiber.Ctx) error {
+	v1.Post("/login", func(c *fiber.Ctx) error {
 		// internal/handler/auth_handler.go
 
 		var req LoginRequest
@@ -256,10 +259,11 @@ func (s *Server) InitializeRoutes() {
 			RefreshToken: newSession.RefreshToken,
 		})
 	})
-	s.App.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+	v1.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
 	})
-	s.App.Post("/create-outlet", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+	v1.Use(VerifyJWTToken(s.Queries))
+	v1.Post("/create-outlet", func(c *fiber.Ctx) error {
 
 		var req db.CreateOutletParams
 		if err := c.BodyParser(&req); err != nil {
