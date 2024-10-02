@@ -167,10 +167,17 @@ func (s *Server) InitializeRoutes() {
 	)
 	v1.Post("/login", func(c *fiber.Ctx) error {
 		// internal/handler/auth_handler.go
+		req, validationErrors, err := validator.ValidateJSONBody[LoginRequest](c)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 
-		var req LoginRequest
-		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
 		}
 
 		// Get user from database
@@ -413,8 +420,8 @@ type CreateUserSessionParams struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"username"`
-	Password string `json:"password"`
+	Email    string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type LoginResponse struct {
