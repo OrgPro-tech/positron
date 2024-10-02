@@ -11,14 +11,21 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< Updated upstream
 	"github.com/OrgPro-tech/positron/backend/internal/config"
 	"github.com/OrgPro-tech/positron/backend/internal/db"
 	"github.com/OrgPro-tech/positron/backend/pkg/validator"
+=======
+>>>>>>> Stashed changes
 	"github.com/alexedwards/argon2id"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/OrgPro-tech/positron/backend/internal/config"
+	"github.com/OrgPro-tech/positron/backend/internal/db"
 )
 
 type ServerImpl interface {
@@ -34,7 +41,6 @@ type Server struct {
 
 func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server {
 	return &Server{
-
 		Config:  config,
 		DB:      db,
 		Queries: queries,
@@ -44,9 +50,18 @@ func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server
 }
 
 func (s *Server) InitializeRoutes() {
+<<<<<<< Updated upstream
 	v1 := s.App.Group("/v1/api")
 
 	v1.Post("/please-login", func(c *fiber.Ctx) error {
+=======
+
+	s.App.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+	}))
+
+	s.App.Post("/please-login", func(c *fiber.Ctx) error {
+>>>>>>> Stashed changes
 		var email = "vaibhav@itday.in"
 		user, err := s.Queries.GetUser(context.Background(), email)
 
@@ -428,6 +443,7 @@ type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
 type User struct {
 	Username     string      `json:"username"`
 	Email        string      `json:"email"`
