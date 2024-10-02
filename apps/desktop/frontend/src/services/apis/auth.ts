@@ -1,9 +1,8 @@
-import { APIResponse, fetchClient, handleFetchError } from ".";
+import { fetchClient, handleFetchError } from ".";
 
 type LoginUser = {
-  email: string;
-  id: number;
-  name: string;
+  access_token: string;
+  refresh_token: string;
 };
 
 export type User = {
@@ -19,14 +18,14 @@ export const emailAndPasswordLogin = async (
   password: string,
 ) => {
   try {
-    const res = await fetchClient<APIResponse<LoginUser>>("login", {
+    const res = await fetchClient<LoginUser>("login", {
       method: "post",
       body: {
-        email: email,
+        username: email,
         password: password,
       },
     });
-    return res.data;
+    return res;
   } catch (e) {
     return handleFetchError(e);
   }

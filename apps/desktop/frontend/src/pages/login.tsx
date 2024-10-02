@@ -29,9 +29,9 @@ export default function LoginPage() {
             const loginResponse = await emailAndPasswordLogin(email, password)
             if (loginResponse) {
                 setMessage({ text: 'Login successful!', isError: false })
-                setTimeout(() => {
-                    setIsLoading(false)
-                }, 400);
+                localStorage.setItem('access-token', loginResponse.access_token)
+                localStorage.setItem('refresh-token', loginResponse.refresh_token)
+                setIsLoading(false)
             } else {
                 throw new APIError('login failed', 401)
             }

@@ -3,7 +3,6 @@ package routes
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -11,12 +10,6 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< Updated upstream
-	"github.com/OrgPro-tech/positron/backend/internal/config"
-	"github.com/OrgPro-tech/positron/backend/internal/db"
-	"github.com/OrgPro-tech/positron/backend/pkg/validator"
-=======
->>>>>>> Stashed changes
 	"github.com/alexedwards/argon2id"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -26,6 +19,7 @@ import (
 
 	"github.com/OrgPro-tech/positron/backend/internal/config"
 	"github.com/OrgPro-tech/positron/backend/internal/db"
+	"github.com/OrgPro-tech/positron/backend/pkg/validator"
 )
 
 type ServerImpl interface {
@@ -50,33 +44,13 @@ func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server
 }
 
 func (s *Server) InitializeRoutes() {
-<<<<<<< Updated upstream
 	v1 := s.App.Group("/v1/api")
-
-	v1.Post("/please-login", func(c *fiber.Ctx) error {
-=======
 
 	s.App.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 	}))
 
-	s.App.Post("/please-login", func(c *fiber.Ctx) error {
->>>>>>> Stashed changes
-		var email = "vaibhav@itday.in"
-		user, err := s.Queries.GetUser(context.Background(), email)
-
-		if err != nil {
-			return errors.New("invalid email id")
-		}
-
-		return c.JSON(map[string]string{
-			"email":    user.Email,
-			"password": user.Password,
-		})
-	})
-
 	v1.Post("/create-user", func(c *fiber.Ctx) error {
-
 		type CreateUserWithBusinessParams struct {
 			User struct {
 				Username     string `json:"username" validate:"required"`
