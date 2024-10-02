@@ -21,7 +21,7 @@ CREATE TABLE "user_outlets" (
     "id" SERIAL NOT NULL,
     "user_id" INTEGER NOT NULL,
     "business_id" TEXT NOT NULL,
-    "outlet_id" TEXT NOT NULL,
+    "outlet_id" INTEGER NOT NULL,
 
     CONSTRAINT "user_outlets_pkey" PRIMARY KEY ("id")
 );

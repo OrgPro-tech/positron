@@ -36,7 +36,7 @@ model UserOutlet {
 }
 
 model Business {
-  id                           Int      @id @default(autoincrement())
+  id                           Int        @id @default(autoincrement())
   contact_person_name          String
   contact_person_email         String
   contact_person_mobile_number String
@@ -56,12 +56,14 @@ model Business {
   account_holder_name          String
   outlets                      Outlet[]
   users                        User[]
+  MenuItem                     MenuItem[]
+  Category                     Category[]
 
   @@map("businesses")
 }
 
 model Outlet {
-  id             Int      @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   outlet_name    String
   outlet_address String
   outlet_pin     Int
@@ -69,8 +71,9 @@ model Outlet {
   outlet_state   String
   outlet_country String
   business_id    Int
-  business       Business @relation(fields: [business_id], references: [id])
+  business       Business         @relation(fields: [business_id], references: [id])
   users          User[]
+  OutletMenuItem OutletMenuItem[]
 
   @@map("outlets")
 }
@@ -90,4 +93,80 @@ model UserSession {
 enum UserType {
   ADMIN
   USER
+}
+
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(50)
+  description String?
+  menu_items  MenuItem[]
+  business    Business   @relation(fields: [business_id], references: [id])
+  business_id Int
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id              Int                  @id @default(autoincrement())
+  category_id     Int?
+  name            String               @db.VarChar(100)
+  description     String?              @db.Text
+  price           Decimal              @db.Decimal(10, 2)
+  is_vegetarian   Boolean              @default(false)
+  spice_level     SpiceLevel?
+  is_available    Boolean              @default(true)
+  is_deleted      Boolean              @default(false)
+  category        Category?            @relation(fields: [category_id], references: [id])
+  ingredients     MenuItemIngredient[]
+  OutletMenuItems OutletMenuItem[]
+  business        Business             @relation(fields: [business_id], references: [id])
+  business_id     Int
+
+  @@map("menu_items")
+}
+
+model Ingredient {
+  id                    Int                  @id @default(autoincrement())
+  name                  String               @db.VarChar(50)
+  unit                  Unit?
+  stock_quantity        Int?
+  menu_item_ingredients MenuItemIngredient[]
+
+  @@map("ingredients")
+}
+
+enum Unit {
+  KG
+  GRAM
+  LITRE
+  ML
+  PCS
+}
+
+model MenuItemIngredient {
+  item_id       Int
+  ingredient_id Int
+  quantity      Decimal    @db.Decimal(10, 2)
+  menu_item     MenuItem   @relation(fields: [item_id], references: [id])
+  ingredient    Ingredient @relation(fields: [ingredient_id], references: [id])
+
+  @@id([item_id, ingredient_id])
+  @@map("menu_item_ingredients")
+}
+
+enum SpiceLevel {
+  Mild
+  Medium
+  Hot
+  ExtraHot @map("Extra Hot")
+}
+
+model OutletMenuItem {
+  id           Int      @id @default(autoincrement())
+  menu_item    MenuItem @relation(fields: [menu_item_id], references: [id])
+  menu_item_id Int
+  outlet_id    Int
+  outlet       Outlet   @relation(fields: [outlet_id], references: [id])
+  price        Decimal  @db.Decimal(10, 2)
+  is_available Boolean  @default(true)
 }

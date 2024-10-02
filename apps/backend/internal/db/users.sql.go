@@ -740,6 +740,24 @@ func (q *Queries) GetUserOutletByID(ctx context.Context, id int32) (UserOutlet, 
 	return i, err
 }
 
+const getUserSessionByRefreshToken = `-- name: GetUserSessionByRefreshToken :one
+SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions WHERE refresh_token = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserSessionByRefreshToken(ctx context.Context, refreshToken string) (UserSession, error) {
+	row := q.db.QueryRow(ctx, getUserSessionByRefreshToken, refreshToken)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getUserSessionByUserID = `-- name: GetUserSessionByUserID :one
 SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions
 WHERE user_id = $1 LIMIT 1

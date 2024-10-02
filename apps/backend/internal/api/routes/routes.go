@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -158,9 +159,10 @@ func (s *Server) InitializeRoutes() {
 		// internal/handler/auth_handler.go
 		req, validationErrors, err := validator.ValidateJSONBody[LoginRequest](c)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return SendErrResponse(c, err, fiber.StatusBadRequest)
+			// 	c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			// 		"error": err.Error(),
+			// 	})
 		}
 
 		if len(validationErrors) > 0 {
@@ -221,7 +223,7 @@ func (s *Server) InitializeRoutes() {
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 			ExpireAt: pgtype.Timestamp{
-				Time:  time.Now().Add(30 * time.Minute),
+				Time:  time.Now().Add(15 * time.Minute),
 				Valid: true,
 			},
 		},
@@ -261,9 +263,26 @@ func (s *Server) InitializeRoutes() {
 	v1.Use(VerifyJWTToken(s.Queries))
 	v1.Post("/create-outlet", func(c *fiber.Ctx) error {
 
-		var req db.CreateOutletParams
-		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body", "ActualError": err})
+		type outletData struct {
+			OutletName    string `json:"outlet_name" validate:"required"`
+			OutletAddress string `json:"outlet_address" validate:"required"`
+			OutletPin     int32  `json:"outlet_pin" validate:"required"`
+			OutletCity    string `json:"outlet_city" validate:"required"`
+			OutletState   string `json:"outlet_state" validate:"required"`
+			OutletCountry string `json:"outlet_country" validate:"required"`
+			BusinessID    int32  `json:"business_id" validate:"required"`
+		}
+		req, validationErrors, err := validator.ValidateJSONBody[outletData](c)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
 		}
 
 		userID := c.Locals("userId").(int32)
@@ -297,74 +316,28 @@ func (s *Server) InitializeRoutes() {
 		return c.Status(fiber.StatusCreated).JSON(response)
 
 	})
-
-	// s.App.Patch("/update-outlets", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
-
-	// 	outletID, err := uuid.Parse(c.Params("id"))
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid outlet ID"})
-	// 	}
-
-	// 	var req UpdateOutletRequest
-	// 	if err := c.BodyParser(&req); err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	// 	}
-
-	// 	// Check if the user has permission to update this outlet
-	// 	userID := c.Locals("userId").(string)
-	// 	if userHasAccessToOutlet(c.Context(), userID, outletID) {
-	// 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You don't have permission to update this outlet"})
-	// 	}
-
-	// 	params := db.UpdateOutletParams{
-	// 		ID:            outletID,
-	// 		OutletName:    sql.NullString{String: "", Valid: false},
-	// 		OutletAddress: sql.NullString{String: "", Valid: false},
-	// 		OutletPin:     sql.NullInt32{Int32: 0, Valid: false},
-	// 		OutletCity:    sql.NullString{String: "", Valid: false},
-	// 		OutletState:   sql.NullString{String: "", Valid: false},
-	// 		OutletCountry: sql.NullString{String: "", Valid: false},
-	// 	}
-
-	// 	if req.OutletName != nil {
-	// 		params.OutletName = sql.NullString{String: *req.OutletName, Valid: true}
-	// 	}
-	// 	if req.OutletAddress != nil {
-	// 		params.OutletAddress = sql.NullString{String: *req.OutletAddress, Valid: true}
-	// 	}
-	// 	if req.OutletPin != nil {
-	// 		params.OutletPin = sql.NullInt32{Int32: *req.OutletPin, Valid: true}
-	// 	}
-	// 	if req.OutletCity != nil {
-	// 		params.OutletCity = sql.NullString{String: *req.OutletCity, Valid: true}
-	// 	}
-	// 	if req.OutletState != nil {
-	// 		params.OutletState = sql.NullString{String: *req.OutletState, Valid: true}
-	// 	}
-	// 	if req.OutletCountry != nil {
-	// 		params.OutletCountry = sql.NullString{String: *req.OutletCountry, Valid: true}
-	// 	}
-
-	// 	updatedOutlet, err := h.Queries.UpdateOutlet(c.Context(), params)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update outlet", "details": err.Error()})
-	// 	}
-
-	// 	response := OutletResponse{
-	// 		ID:            updatedOutlet.ID,
-	// 		OutletName:    updatedOutlet.OutletName,
-	// 		OutletAddress: updatedOutlet.OutletAddress,
-	// 		OutletPin:     updatedOutlet.OutletPin,
-	// 		OutletCity:    updatedOutlet.OutletCity,
-	// 		OutletState:   updatedOutlet.OutletState,
-	// 		OutletCountry: updatedOutlet.OutletCountry,
-	// 		BusinessID:    updatedOutlet.BusinessID,
-	// 	}
-
-	// 	return c.JSON(response)
+	// v1.Post("/profile",func(c *fiber.Ctx) error {
 
 	// })
+}
+func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {
+	claims := &jwt.StandardClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
 
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	return claims, nil
 }
 
 type UpdateOutletRequest struct {
@@ -504,7 +477,8 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
+				"error":   "Invalid token",
+				"message": err.Error(),
 			})
 		}
 
@@ -613,3 +587,20 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 // }
 
 var jwtSecret = []byte("os.Getenv(JWT_SECRET)")
+
+func SendErrResponse(ctx *fiber.Ctx, err error, statusCode int) error {
+	return ctx.Status(statusCode).JSON(&fiber.Map{
+		"status": statusCode,
+		"error": &fiber.Map{
+			"message": err.Error(),
+		},
+	})
+}
+
+func SendSuccessResponse(ctx *fiber.Ctx, message string, data interface{}, statusCode int) error {
+	return ctx.Status(statusCode).JSON(&fiber.Map{
+		"status":  statusCode,
+		"message": message,
+		"data":    data,
+	})
+}
