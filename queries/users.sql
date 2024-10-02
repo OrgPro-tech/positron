@@ -227,3 +227,15 @@ SET
     outlet_country = COALESCE($7, outlet_country)
 WHERE id = $1
 RETURNING *;
+
+
+
+-- name: GetLatestUserSession :one
+SELECT * FROM user_sessions
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: DeleteUserSessions :exec
+DELETE FROM user_sessions
+WHERE user_id = $1;

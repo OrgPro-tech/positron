@@ -572,6 +572,16 @@ func (q *Queries) DeleteUserSession(ctx context.Context, userID int32) error {
 	return err
 }
 
+const deleteUserSessions = `-- name: DeleteUserSessions :exec
+DELETE FROM user_sessions
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteUserSessions(ctx context.Context, userID int32) error {
+	_, err := q.db.Exec(ctx, deleteUserSessions, userID)
+	return err
+}
+
 const getBusinessByID = `-- name: GetBusinessByID :one
 SELECT id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name FROM businesses
 WHERE id = $1 LIMIT 1
@@ -599,6 +609,27 @@ func (q *Queries) GetBusinessByID(ctx context.Context, id int32) (Business, erro
 		&i.IfscCode,
 		&i.AccountType,
 		&i.AccountHolderName,
+	)
+	return i, err
+}
+
+const getLatestUserSession = `-- name: GetLatestUserSession :one
+SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestUserSession(ctx context.Context, userID int32) (UserSession, error) {
+	row := q.db.QueryRow(ctx, getLatestUserSession, userID)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }

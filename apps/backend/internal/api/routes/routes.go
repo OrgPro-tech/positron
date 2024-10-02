@@ -2,11 +2,13 @@ package routes
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/OrgPro-tech/positron/backend/internal/config"
@@ -119,97 +121,141 @@ func (s *Server) InitializeRoutes() {
 		// return c.Status(fiber.StatusCreated).JSON((createdUser))
 	},
 	)
-	// s.App.Post("/login", func(c *fiber.Ctx) error {
-	// 	// internal/handler/auth_handler.go
+	s.App.Post("/login", func(c *fiber.Ctx) error {
+		// internal/handler/auth_handler.go
 
-	// 	var req LoginRequest
-	// 	if err := c.BodyParser(&req); err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	// 	}
+		var req LoginRequest
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		}
 
-	// 	// Get user from database
-	// 	user, err := s.Queries.GetUserByUsernameOrEmail(c.Context(), req.Email) //.GetUserByUsername(context.Background(), req.Username)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials", "error_cred": err})
-	// 	}
+		// Get user from database
+		user, err := s.Queries.GetUserByUsernameOrEmail(c.Context(), req.Email) //.GetUserByUsername(context.Background(), req.Username)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials", "error_cred": err})
+		}
 
-	// 	// Check password
-	// 	if !comparePasswordHash(req.Password, user.Password) {
-	// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials", "error_password_check": err})
-	// 	}
+		// Check password
+		if !comparePasswordHash(req.Password, user.Password) {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials", "error_password_check": err})
+		}
 
-	// 	// Generate tokens
-	// 	accessToken, err := generateAccessToken(user.ID)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate access token"})
-	// 	}
+		// Check if valid session exists
+		session, err := s.Queries.GetUserSessionByUserID(c.Context(), user.ID)
+		if err == nil && session.ExpireAt.Time.After(time.Now()) {
+			// Valid session exists, return existing tokens
+			return c.JSON(LoginResponse{
+				AccessToken:  session.AccessToken,
+				RefreshToken: session.RefreshToken,
+			})
+		}
 
-	// 	refreshToken, err := generateRefreshToken(user.ID)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate refresh token"})
-	// 	}
+		// Generate tokens
+		accessToken, err := generateAccessToken(user.ID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate access token"})
+		}
 
-	// 	// Save refresh token to database
-	// 	sessiondata, err := s.Queries.CreateUserSession(context.Background(), db.CreateUserSessionParams{
-	// 		UserID:       user.ID,
-	// 		AccessToken:  accessToken,
-	// 		RefreshToken: refreshToken,
-	// 		ExpireAt: pgtype.Timestamp{
-	// 			Time:  time.Now().Add(30 * time.Minute),
-	// 			Valid: true,
-	// 		},
-	// 	},
-	// 	)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save session", "errorData": err})
-	// 	}
+		refreshToken, err := generateRefreshToken(user.ID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate refresh token"})
+		}
 
-	// 	return c.JSON(LoginResponse{
-	// 		AccessToken:  sessiondata.AccessToken,
-	// 		RefreshToken: sessiondata.RefreshToken,
-	// 	})
-	// })
-	// s.App.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
-	// 	return c.SendString("Hello, World!")
-	// })
-	// s.App.Post("/create-outlet", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+		// Start a transaction
+		tx, err := s.DB.Begin(c.Context())
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to start transaction"})
+		}
+		defer tx.Rollback(c.Context())
 
-	// 	var req db.CreateOutletParams
-	// 	if err := c.BodyParser(&req); err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	// 	}
+		qtx := s.Queries.WithTx(tx)
 
-	// 	userID := c.Locals("userId").(string)
+		// Delete existing sessions for the user
+		if err := qtx.DeleteUserSessions(c.Context(), user.ID); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete old sessions"})
+		}
 
-	// 	result, err := s.Queries.CreateOutletWithUserAssociation(c.Context(), db.CreateOutletWithUserAssociationParams{
-	// 		OutletName:    req.OutletName,
-	// 		OutletAddress: req.OutletAddress,
-	// 		OutletPin:     req.OutletPin,
-	// 		OutletCity:    req.OutletCity,
-	// 		OutletState:   req.OutletState,
-	// 		OutletCountry: req.OutletCountry,
-	// 		BusinessID:    (req.BusinessID),
-	// 		UserID:        (userID),
-	// 	})
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create outlet", "details": err.Error()})
-	// 	}
+		// Create new session
+		newSession, err := qtx.CreateUserSession(context.Background(), db.CreateUserSessionParams{
+			UserID:       user.ID,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			ExpireAt: pgtype.Timestamp{
+				Time:  time.Now().Add(30 * time.Minute),
+				Valid: true,
+			},
+		},
+		)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save session"})
+		}
 
-	// 	response := db.CreateOutletWithUserAssociationRow{
-	// 		ID:            result.ID,
-	// 		OutletName:    result.OutletName,
-	// 		OutletAddress: result.OutletAddress,
-	// 		OutletPin:     result.OutletPin,
-	// 		OutletCity:    result.OutletCity,
-	// 		OutletState:   result.OutletState,
-	// 		OutletCountry: result.OutletCountry,
-	// 		BusinessID:    result.BusinessID,
-	// 		UserOutletID:  result.UserOutletID,
-	// 	}
+		// Commit the transaction
+		if err := tx.Commit(c.Context()); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to commit transaction"})
+		}
 
-	// 	return c.Status(fiber.StatusCreated).JSON(response)
+		// // Save refresh token to database
+		// sessiondata, err := s.Queries.CreateUserSession(context.Background(), db.CreateUserSessionParams{
+		// 	UserID:       user.ID,
+		// 	AccessToken:  accessToken,
+		// 	RefreshToken: refreshToken,
+		// 	ExpireAt: pgtype.Timestamp{
+		// 		Time:  time.Now().Add(30 * time.Minute),
+		// 		Valid: true,
+		// 	},
+		// },
+		// )
+		// if err != nil {
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save session", "errorData": err})
+		// }
 
-	// })
+		return c.JSON(LoginResponse{
+			AccessToken:  newSession.AccessToken,
+			RefreshToken: newSession.RefreshToken,
+		})
+	})
+	s.App.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+		return c.SendString("Hello, World!")
+	})
+	s.App.Post("/create-outlet", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+
+		var req db.CreateOutletParams
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		userID := c.Locals("userId").(int32)
+
+		result, err := s.Queries.CreateOutletWithUserAssociation(c.Context(), db.CreateOutletWithUserAssociationParams{
+			OutletName:    req.OutletName,
+			OutletAddress: req.OutletAddress,
+			OutletPin:     req.OutletPin,
+			OutletCity:    req.OutletCity,
+			OutletState:   req.OutletState,
+			OutletCountry: req.OutletCountry,
+			BusinessID:    (req.BusinessID),
+			UserID:        (userID),
+		})
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create outlet", "details": err.Error()})
+		}
+
+		response := db.CreateOutletWithUserAssociationRow{
+			ID:            result.ID,
+			OutletName:    result.OutletName,
+			OutletAddress: result.OutletAddress,
+			OutletPin:     result.OutletPin,
+			OutletCity:    result.OutletCity,
+			OutletState:   result.OutletState,
+			OutletCountry: result.OutletCountry,
+			BusinessID:    result.BusinessID,
+			UserOutletID:  result.UserOutletID,
+		}
+
+		return c.Status(fiber.StatusCreated).JSON(response)
+
+	})
 
 	// s.App.Patch("/update-outlets", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
 
@@ -296,7 +342,7 @@ func userHasAccessToOutlet(ctx context.Context, userID string, outletID uuid.UUI
 	return true
 }
 
-func generateAccessToken(userID string) (string, error) {
+func generateAccessToken(userID int32) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(15 * time.Minute).Unix(), // Token expires in 15 minutes
@@ -305,7 +351,7 @@ func generateAccessToken(userID string) (string, error) {
 	return token.SignedString([]byte("os.Getenv(JWT_SECRET)"))
 }
 
-func generateRefreshToken(userID string) (string, error) {
+func generateRefreshToken(userID int32) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(24 * time.Hour).Unix(), // Token expires in 24 hours
@@ -390,78 +436,78 @@ func comparePasswordHash(user_password, hash string) bool {
 	return match
 }
 
-// func VerifyJWTToken(queries *db.Queries) fiber.Handler {
-// 	return func(c *fiber.Ctx) error {
-// 		// Get the Authorization header
-// 		authHeader := c.Get("Authorization")
+func VerifyJWTToken(queries *db.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Get the Authorization header
+		authHeader := c.Get("Authorization")
 
-// 		// Check if the Authorization header is present and has the correct format
-// 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-// 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 				"error": "Invalid or missing Authorization header",
-// 			})
-// 		}
+		// Check if the Authorization header is present and has the correct format
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid or missing Authorization header",
+			})
+		}
 
-// 		// Extract the token from the Authorization header
-// 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		// Extract the token from the Authorization header
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-// 		// Parse and validate the token
-// 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-// 			// Validate the alg is what you expect
-// 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-// 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-// 			}
-// 			return jwtSecret, nil
-// 		})
+		// Parse and validate the token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			// Validate the alg is what you expect
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return jwtSecret, nil
+		})
 
-// 		if err != nil {
-// 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 				"error": "Invalid token",
-// 			})
-// 		}
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid token",
+			})
+		}
 
-// 		// Check if the token is valid
-// 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-// 			// Extract the user ID from the claims
-// 			userId, ok := claims["user_id"].(string)
-// 			if !ok {
-// 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 					"error": "Invalid token claims",
-// 				})
-// 			}
+		// Check if the token is valid
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			// Extract the user ID from the claims
+			userId, ok := claims["user_id"].(float64)
+			if !ok {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "Invalid token claims",
+				})
+			}
 
-// 			// Query the database to find the user session
-// 			session, err := queries.GetUserSessionByUserID(context.Background(), userId)
-// 			if err != nil {
-// 				if err == sql.ErrNoRows {
-// 					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 						"error": "Invalid access token",
-// 					})
-// 				}
-// 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-// 					"error": "Failed to verify access token",
-// 				})
-// 			}
+			// Query the database to find the user session
+			session, err := queries.GetUserSessionByUserID(context.Background(), int32(userId))
+			if err != nil {
+				if err == sql.ErrNoRows {
+					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "Invalid access token",
+					})
+				}
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to verify access token",
+				})
+			}
 
-// 			// Check if the token has expired
-// 			// if time.Now().After(session.ExpireAt.Time) || session.AccessToken == tokenString {
-// 			// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 			// 		"error": "Access token has expired",
-// 			// 	})
-// 			// }
+			// Check if the token has expired
+			// if time.Now().After(session.ExpireAt.Time) || session.AccessToken == tokenString {
+			// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			// 		"error": "Access token has expired",
+			// 	})
+			// }
 
-// 			// Set the user ID in the context for use in subsequent handlers
-// 			c.Locals("userId", session.UserID)
+			// Set the user ID in the context for use in subsequent handlers
+			c.Locals("userId", session.UserID)
 
-// 			// Continue to the next middleware or route handler
-// 			return c.Next()
-// 		}
+			// Continue to the next middleware or route handler
+			return c.Next()
+		}
 
-// 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-// 			"error": "Invalid token",
-// 		})
-// 	}
-// }
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid token",
+		})
+	}
+}
 
 // func VerifyAccessToken(queries *db.Queries) fiber.Handler {
 // 	return func(c *fiber.Ctx) error {
