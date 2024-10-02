@@ -112,7 +112,7 @@ type UserOutlet struct {
 	ID         int32  `json:"id"`
 	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
-	OutletID   string `json:"outlet_id"`
+	OutletID   int32  `json:"outlet_id"`
 }
 
 type UserSession struct {

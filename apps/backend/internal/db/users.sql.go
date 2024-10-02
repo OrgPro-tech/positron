@@ -265,7 +265,7 @@ RETURNING id, user_id, business_id, outlet_id
 type CreateUserOutletParams struct {
 	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
-	OutletID   string `json:"outlet_id"`
+	OutletID   int32  `json:"outlet_id"`
 }
 
 func (q *Queries) CreateUserOutlet(ctx context.Context, arg CreateUserOutletParams) (UserOutlet, error) {
