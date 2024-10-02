@@ -4,9 +4,122 @@
 
 package db
 
+import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type UserType string
+
+const (
+	UserTypeADMIN UserType = "ADMIN"
+	UserTypeUSER  UserType = "USER"
+)
+
+func (e *UserType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserType(s)
+	case string:
+		*e = UserType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserType: %T", src)
+	}
+	return nil
+}
+
+type NullUserType struct {
+	UserType UserType `json:"UserType"`
+	Valid    bool     `json:"valid"` // Valid is true if UserType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserType) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserType), nil
+}
+
+type Business struct {
+	ID                        int32  `json:"id"`
+	ContactPersonName         string `json:"contact_person_name"`
+	ContactPersonEmail        string `json:"contact_person_email"`
+	ContactPersonMobileNumber string `json:"contact_person_mobile_number"`
+	CompanyName               string `json:"company_name"`
+	Address                   string `json:"address"`
+	Pin                       int32  `json:"pin"`
+	City                      string `json:"city"`
+	State                     string `json:"state"`
+	Country                   string `json:"country"`
+	BusinessType              string `json:"business_type"`
+	Gst                       string `json:"gst"`
+	Pan                       string `json:"pan"`
+	BankAccountNumber         string `json:"bank_account_number"`
+	BankName                  string `json:"bank_name"`
+	IfscCode                  string `json:"ifsc_code"`
+	AccountType               string `json:"account_type"`
+	AccountHolderName         string `json:"account_holder_name"`
+}
+
+type Outlet struct {
+	ID            int32  `json:"id"`
+	OutletName    string `json:"outlet_name"`
+	OutletAddress string `json:"outlet_address"`
+	OutletPin     int32  `json:"outlet_pin"`
+	OutletCity    string `json:"outlet_city"`
+	OutletState   string `json:"outlet_state"`
+	OutletCountry string `json:"outlet_country"`
+	BusinessID    int32  `json:"business_id"`
+}
+
+type PrismaMigration struct {
+	ID                string             `json:"id"`
+	Checksum          string             `json:"checksum"`
+	FinishedAt        pgtype.Timestamptz `json:"finished_at"`
+	MigrationName     string             `json:"migration_name"`
+	Logs              pgtype.Text        `json:"logs"`
+	RolledBackAt      pgtype.Timestamptz `json:"rolled_back_at"`
+	StartedAt         pgtype.Timestamptz `json:"started_at"`
+	AppliedStepsCount int32              `json:"applied_steps_count"`
+}
+
 type User struct {
-	ID       int32
-	Name     string
-	Email    string
-	Password string
+	ID           int32       `json:"id"`
+	Name         string      `json:"name"`
+	Email        string      `json:"email"`
+	Password     string      `json:"password"`
+	MobileNumber string      `json:"mobile_number"`
+	UserType     UserType    `json:"user_type"`
+	Username     string      `json:"username"`
+	BusinessID   int32       `json:"business_id"`
+	OutletID     pgtype.Int4 `json:"outlet_id"`
+}
+
+type UserOutlet struct {
+	ID         int32  `json:"id"`
+	UserID     int32  `json:"user_id"`
+	BusinessID string `json:"business_id"`
+	OutletID   string `json:"outlet_id"`
+}
+
+type UserSession struct {
+	ID           int32            `json:"id"`
+	UserID       int32            `json:"user_id"`
+	AccessToken  string           `json:"access_token"`
+	RefreshToken string           `json:"refresh_token"`
+	ExpireAt     pgtype.Timestamp `json:"expire_at"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
 }

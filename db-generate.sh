@@ -16,21 +16,12 @@ load_env
 export PGPASSWORD="$DATABASE_PASSWORD"
 
 echo "Syncing Prisma with the Database"
-npx prisma migrate dev --skip-generate
+npx prisma migrate dev 
 
-pg_dump --host=$DATABASE_HOST --username=$DATABASE_USERNAME --dbname=$DATABASE_NAME --port=$DATABASE_PORT --schema-only |
-sed -n '/^CREATE TABLE/,/);$/p' |
-sed '/^ALTER TABLE/d' |
-awk '
-    /^CREATE TABLE public\._prisma_migrations/ {skip=1; next}
-    /^CREATE TABLE/ {if (!skip) {print; in_table=1}; next}
-    /^);$/ {if (!skip) print; skip=0; in_table=0; next}
-    in_table {print}
-' > schema.sql
+pg_dump --host=$DATABASE_HOST --username=$DATABASE_USERNAME --dbname=$DATABASE_NAME --port=$DATABASE_PORT --schema-only | > schema.sql
 
 unset PGPASSWORD
 
 echo "Generating new Query functions"
 sqlc generate
-
-echo "Generated succesfully"
+echo "Generated successfully"
