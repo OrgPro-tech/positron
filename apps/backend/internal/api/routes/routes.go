@@ -13,6 +13,7 @@ import (
 
 	"github.com/OrgPro-tech/positron/backend/internal/config"
 	"github.com/OrgPro-tech/positron/backend/internal/db"
+	"github.com/OrgPro-tech/positron/backend/pkg/validator"
 	"github.com/alexedwards/argon2id"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
@@ -58,40 +59,80 @@ func (s *Server) InitializeRoutes() {
 	})
 
 	s.App.Post("/create-user", func(c *fiber.Ctx) error {
-		// var user User
-		// if err := c.BodyParser(&user); err != nil {
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body", "errorData": err})
-		// }
-		// fmt.Printf("user: %v\n", user)
+		type CreateUserWithBusinessParams struct {
+			User struct {
+				Username     string `json:"username" validate:"required"`
+				Password     string `json:"password" validate:"required"`
+				Email        string `json:"email" validate:"required"`
+				Name         string `json:"name" validate:"required"`
+				MobileNumber string `json:"mobile_number" validate:"required"`
+				UserType     string `json:"user_type" validate:"required"`
+			} `json:"user" validate:"required"`
+			Business struct {
+				ContactPersonName         string `json:"contact_person_name" validate:"required"`
+				ContactPersonEmail        string `json:"contact_person_email" validate:"required"`
+				ContactPersonMobileNumber string `json:"contact_person_mobile_number" validate:"required"`
+				CompanyName               string `json:"company_name" validate:"required"`
+				Address                   string `json:"address" validate:"required"`
+				Pin                       int32  `json:"pin" validate:"required"`
+				City                      string `json:"city" validate:"required"`
+				State                     string `json:"state" validate:"required"`
+				Country                   string `json:"country" validate:"required"`
+				BusinessType              string `json:"business_type" validate:"required"`
+				Gst                       string `json:"gst" validate:"required"`
+				Pan                       string `json:"pan" validate:"required"`
+				BankAccountNumber         string `json:"bank_account_number" validate:"required"`
+				BankName                  string `json:"bank_name" validate:"required"`
+				IfscCode                  string `json:"ifsc_code" validate:"required"`
+				AccountType               string `json:"account_type" validate:"required"`
+				AccountHolderName         string `json:"account_holder_name" validate:"required"`
+			} `json:"Business" validate:"required"`
+		}
 
-		// params := db.CreateUserParams{
-		// 	Username:     user.Username,
-		// 	Email:        user.Email,
-		// 	Name:         user.Name,
-		// 	MobileNumber: user.MobileNumber,
-		// 	Password:     createPasswordHash(user.Password),
-		// 	UserType:     userTypeToString(user.UserType),
-		// }
-
-		// createdUser, err := s.Queries.CreateUser(c.Context(), params)
-		// if err != nil {
-		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user", "actualError": err})
-		// }
-		var req db.CreateUserWithBusinessParams
-		if err := c.BodyParser(&req); err != nil {
-			s.logger.Error("Failed to parse request body", "error", err)
+		reqBody, validationErrors, err := validator.ValidateJSONBody[CreateUserWithBusinessParams](c)
+		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid request body",
+				"error": err.Error(),
 			})
 		}
 
-		// if err := validate.Struct(req); err != nil {
-		// 	s.logger.Error("Input validation failed", "error", err)
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
+		}
+		// var reqBody CreateUserWithBusinessParams
+		// if err := c.BodyParser(&reqBody); err != nil {
+		// 	s.logger.Error("Failed to parse request body", "error", err)
 		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		// 		"error":   "Invalid input data",
-		// 		"details": util.FormatValidationErrors(err),
+		// 		"error": "Invalid request body",
 		// 	})
 		// }
+		req := db.CreateUserWithBusinessParams{
+			ContactPersonName:         reqBody.Business.ContactPersonName,
+			ContactPersonEmail:        reqBody.Business.ContactPersonEmail,
+			ContactPersonMobileNumber: reqBody.Business.ContactPersonMobileNumber,
+			CompanyName:               reqBody.Business.CompanyName,
+			Address:                   reqBody.Business.Address,
+			Pin:                       reqBody.Business.Pin,
+			City:                      reqBody.Business.City,
+			State:                     reqBody.Business.State,
+			Country:                   reqBody.Business.Country,
+			BusinessType:              reqBody.Business.BusinessType,
+			Gst:                       reqBody.Business.Gst,
+			Pan:                       reqBody.Business.Pan,
+			BankAccountNumber:         reqBody.Business.BankAccountNumber,
+			BankName:                  reqBody.Business.BankName,
+			IfscCode:                  reqBody.Business.IfscCode,
+			AccountType:               reqBody.Business.AccountType,
+			AccountHolderName:         reqBody.Business.AccountHolderName,
+			Username:                  reqBody.User.Username,
+			Password:                  reqBody.User.Password,
+			Email:                     reqBody.User.Email,
+			Name:                      reqBody.User.Name,
+			MobileNumber:              reqBody.User.MobileNumber,
+			UserType:                  userTypeToString(reqBody.User.UserType),
+		}
 
 		// Hash the password before storing
 		hashedPassword, err := createPasswordHash(req.Password)
@@ -222,7 +263,7 @@ func (s *Server) InitializeRoutes() {
 
 		var req db.CreateOutletParams
 		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body", "ActualError": err})
 		}
 
 		userID := c.Locals("userId").(int32)
