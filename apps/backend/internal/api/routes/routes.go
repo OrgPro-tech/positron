@@ -316,9 +316,20 @@ func (s *Server) InitializeRoutes() {
 		return c.Status(fiber.StatusCreated).JSON(response)
 
 	})
-	// v1.Post("/profile",func(c *fiber.Ctx) error {
+	v1.Get("/profile", func(c *fiber.Ctx) error {
 
-	// })
+		userID := c.Locals("userId").(int32)
+
+		profile, err := s.Queries.GetUserProfile(c.Context(), (userID))
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch user profile"})
+		}
+
+		return c.JSON(profile)
+	})
 }
 func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {
 	claims := &jwt.StandardClaims{}

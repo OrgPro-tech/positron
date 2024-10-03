@@ -242,3 +242,32 @@ WHERE user_id = $1;
 
 -- name: GetUserSessionByRefreshToken :one
 SELECT * FROM user_sessions WHERE refresh_token = $1 LIMIT 1;
+
+
+-- name: GetUserProfile :one
+SELECT 
+    u.id,
+    u.name,
+    u.email,
+    u.mobile_number,
+    u.user_type,
+    u.username,
+    b.id AS business_id,
+    b.company_name,
+    b.contact_person_name,
+    b.contact_person_email,
+    b.contact_person_mobile_number,
+    b.address,
+    b.pin,
+    b.city,
+    b.state,
+    b.country,
+    b.business_type,
+    b.gst,
+    b.pan
+FROM 
+    users u
+JOIN 
+    businesses b ON u.business_id = b.id
+WHERE 
+    u.id = $1;
