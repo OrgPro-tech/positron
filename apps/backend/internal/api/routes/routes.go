@@ -11,13 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/OrgPro-tech/positron/backend/internal/config"
-	"github.com/OrgPro-tech/positron/backend/internal/db"
 	"github.com/alexedwards/argon2id"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/OrgPro-tech/positron/backend/internal/config"
+	"github.com/OrgPro-tech/positron/backend/internal/db"
+	"github.com/OrgPro-tech/positron/backend/pkg/validator"
 )
 
 type ServerImpl interface {
@@ -33,7 +36,6 @@ type Server struct {
 
 func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server {
 	return &Server{
-
 		Config:  config,
 		DB:      db,
 		Queries: queries,
@@ -43,55 +45,87 @@ func NewApiServer(config *config.Config, db *db.DB, queries *db.Queries) *Server
 }
 
 func (s *Server) InitializeRoutes() {
-	s.App.Post("/please-login", func(c *fiber.Ctx) error {
-		var email = "vaibhav@itday.in"
-		user, err := s.Queries.GetUser(context.Background(), email)
+	v1 := s.App.Group("/v1/api")
 
-		if err != nil {
-			return errors.New("invalid email id")
+	s.App.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+	}))
+
+	v1.Post("/create-user", func(c *fiber.Ctx) error {
+		type CreateUserWithBusinessParams struct {
+			User struct {
+				Username     string `json:"username" validate:"required"`
+				Password     string `json:"password" validate:"required"`
+				Email        string `json:"email" validate:"required"`
+				Name         string `json:"name" validate:"required"`
+				MobileNumber string `json:"mobile_number" validate:"required"`
+				UserType     string `json:"user_type" validate:"required"`
+			} `json:"user" validate:"required"`
+			Business struct {
+				ContactPersonName         string `json:"contact_person_name" validate:"required"`
+				ContactPersonEmail        string `json:"contact_person_email" validate:"required"`
+				ContactPersonMobileNumber string `json:"contact_person_mobile_number" validate:"required"`
+				CompanyName               string `json:"company_name" validate:"required"`
+				Address                   string `json:"address" validate:"required"`
+				Pin                       int32  `json:"pin" validate:"required"`
+				City                      string `json:"city" validate:"required"`
+				State                     string `json:"state" validate:"required"`
+				Country                   string `json:"country" validate:"required"`
+				BusinessType              string `json:"business_type" validate:"required"`
+				Gst                       string `json:"gst" validate:"required"`
+				Pan                       string `json:"pan" validate:"required"`
+				BankAccountNumber         string `json:"bank_account_number" validate:"required"`
+				BankName                  string `json:"bank_name" validate:"required"`
+				IfscCode                  string `json:"ifsc_code" validate:"required"`
+				AccountType               string `json:"account_type" validate:"required"`
+				AccountHolderName         string `json:"account_holder_name" validate:"required"`
+			} `json:"Business" validate:"required"`
 		}
 
-		return c.JSON(map[string]string{
-			"email":    user.Email,
-			"password": user.Password,
-		})
-	})
-
-	s.App.Post("/create-user", func(c *fiber.Ctx) error {
-		// var user User
-		// if err := c.BodyParser(&user); err != nil {
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body", "errorData": err})
-		// }
-		// fmt.Printf("user: %v\n", user)
-
-		// params := db.CreateUserParams{
-		// 	Username:     user.Username,
-		// 	Email:        user.Email,
-		// 	Name:         user.Name,
-		// 	MobileNumber: user.MobileNumber,
-		// 	Password:     createPasswordHash(user.Password),
-		// 	UserType:     userTypeToString(user.UserType),
-		// }
-
-		// createdUser, err := s.Queries.CreateUser(c.Context(), params)
-		// if err != nil {
-		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user", "actualError": err})
-		// }
-		var req db.CreateUserWithBusinessParams
-		if err := c.BodyParser(&req); err != nil {
-			s.logger.Error("Failed to parse request body", "error", err)
+		reqBody, validationErrors, err := validator.ValidateJSONBody[CreateUserWithBusinessParams](c)
+		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid request body",
+				"error": err.Error(),
 			})
 		}
 
-		// if err := validate.Struct(req); err != nil {
-		// 	s.logger.Error("Input validation failed", "error", err)
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
+		}
+		// var reqBody CreateUserWithBusinessParams
+		// if err := c.BodyParser(&reqBody); err != nil {
+		// 	s.logger.Error("Failed to parse request body", "error", err)
 		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		// 		"error":   "Invalid input data",
-		// 		"details": util.FormatValidationErrors(err),
+		// 		"error": "Invalid request body",
 		// 	})
 		// }
+		req := db.CreateUserWithBusinessParams{
+			ContactPersonName:         reqBody.Business.ContactPersonName,
+			ContactPersonEmail:        reqBody.Business.ContactPersonEmail,
+			ContactPersonMobileNumber: reqBody.Business.ContactPersonMobileNumber,
+			CompanyName:               reqBody.Business.CompanyName,
+			Address:                   reqBody.Business.Address,
+			Pin:                       reqBody.Business.Pin,
+			City:                      reqBody.Business.City,
+			State:                     reqBody.Business.State,
+			Country:                   reqBody.Business.Country,
+			BusinessType:              reqBody.Business.BusinessType,
+			Gst:                       reqBody.Business.Gst,
+			Pan:                       reqBody.Business.Pan,
+			BankAccountNumber:         reqBody.Business.BankAccountNumber,
+			BankName:                  reqBody.Business.BankName,
+			IfscCode:                  reqBody.Business.IfscCode,
+			AccountType:               reqBody.Business.AccountType,
+			AccountHolderName:         reqBody.Business.AccountHolderName,
+			Username:                  reqBody.User.Username,
+			Password:                  reqBody.User.Password,
+			Email:                     reqBody.User.Email,
+			Name:                      reqBody.User.Name,
+			MobileNumber:              reqBody.User.MobileNumber,
+			UserType:                  userTypeToString(reqBody.User.UserType),
+		}
 
 		// Hash the password before storing
 		hashedPassword, err := createPasswordHash(req.Password)
@@ -121,12 +155,20 @@ func (s *Server) InitializeRoutes() {
 		// return c.Status(fiber.StatusCreated).JSON((createdUser))
 	},
 	)
-	s.App.Post("/login", func(c *fiber.Ctx) error {
+	v1.Post("/login", func(c *fiber.Ctx) error {
 		// internal/handler/auth_handler.go
+		req, validationErrors, err := validator.ValidateJSONBody[LoginRequest](c)
+		if err != nil {
+			return SendErrResponse(c, err, fiber.StatusBadRequest)
+			// 	c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			// 		"error": err.Error(),
+			// 	})
+		}
 
-		var req LoginRequest
-		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
 		}
 
 		// Get user from database
@@ -181,7 +223,7 @@ func (s *Server) InitializeRoutes() {
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 			ExpireAt: pgtype.Timestamp{
-				Time:  time.Now().Add(30 * time.Minute),
+				Time:  time.Now().Add(15 * time.Minute),
 				Valid: true,
 			},
 		},
@@ -215,14 +257,32 @@ func (s *Server) InitializeRoutes() {
 			RefreshToken: newSession.RefreshToken,
 		})
 	})
-	s.App.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+	v1.Get("/v", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
 		return c.SendString("Hello, World!")
 	})
-	s.App.Post("/create-outlet", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
+	v1.Use(VerifyJWTToken(s.Queries))
+	v1.Post("/create-outlet", func(c *fiber.Ctx) error {
 
-		var req db.CreateOutletParams
-		if err := c.BodyParser(&req); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+		type outletData struct {
+			OutletName    string `json:"outlet_name" validate:"required"`
+			OutletAddress string `json:"outlet_address" validate:"required"`
+			OutletPin     int32  `json:"outlet_pin" validate:"required"`
+			OutletCity    string `json:"outlet_city" validate:"required"`
+			OutletState   string `json:"outlet_state" validate:"required"`
+			OutletCountry string `json:"outlet_country" validate:"required"`
+			BusinessID    int32  `json:"business_id" validate:"required"`
+		}
+		req, validationErrors, err := validator.ValidateJSONBody[outletData](c)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if len(validationErrors) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"errors": validationErrors,
+			})
 		}
 
 		userID := c.Locals("userId").(int32)
@@ -256,74 +316,28 @@ func (s *Server) InitializeRoutes() {
 		return c.Status(fiber.StatusCreated).JSON(response)
 
 	})
-
-	// s.App.Patch("/update-outlets", VerifyJWTToken(s.Queries), func(c *fiber.Ctx) error {
-
-	// 	outletID, err := uuid.Parse(c.Params("id"))
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid outlet ID"})
-	// 	}
-
-	// 	var req UpdateOutletRequest
-	// 	if err := c.BodyParser(&req); err != nil {
-	// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
-	// 	}
-
-	// 	// Check if the user has permission to update this outlet
-	// 	userID := c.Locals("userId").(string)
-	// 	if userHasAccessToOutlet(c.Context(), userID, outletID) {
-	// 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "You don't have permission to update this outlet"})
-	// 	}
-
-	// 	params := db.UpdateOutletParams{
-	// 		ID:            outletID,
-	// 		OutletName:    sql.NullString{String: "", Valid: false},
-	// 		OutletAddress: sql.NullString{String: "", Valid: false},
-	// 		OutletPin:     sql.NullInt32{Int32: 0, Valid: false},
-	// 		OutletCity:    sql.NullString{String: "", Valid: false},
-	// 		OutletState:   sql.NullString{String: "", Valid: false},
-	// 		OutletCountry: sql.NullString{String: "", Valid: false},
-	// 	}
-
-	// 	if req.OutletName != nil {
-	// 		params.OutletName = sql.NullString{String: *req.OutletName, Valid: true}
-	// 	}
-	// 	if req.OutletAddress != nil {
-	// 		params.OutletAddress = sql.NullString{String: *req.OutletAddress, Valid: true}
-	// 	}
-	// 	if req.OutletPin != nil {
-	// 		params.OutletPin = sql.NullInt32{Int32: *req.OutletPin, Valid: true}
-	// 	}
-	// 	if req.OutletCity != nil {
-	// 		params.OutletCity = sql.NullString{String: *req.OutletCity, Valid: true}
-	// 	}
-	// 	if req.OutletState != nil {
-	// 		params.OutletState = sql.NullString{String: *req.OutletState, Valid: true}
-	// 	}
-	// 	if req.OutletCountry != nil {
-	// 		params.OutletCountry = sql.NullString{String: *req.OutletCountry, Valid: true}
-	// 	}
-
-	// 	updatedOutlet, err := h.Queries.UpdateOutlet(c.Context(), params)
-	// 	if err != nil {
-	// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update outlet", "details": err.Error()})
-	// 	}
-
-	// 	response := OutletResponse{
-	// 		ID:            updatedOutlet.ID,
-	// 		OutletName:    updatedOutlet.OutletName,
-	// 		OutletAddress: updatedOutlet.OutletAddress,
-	// 		OutletPin:     updatedOutlet.OutletPin,
-	// 		OutletCity:    updatedOutlet.OutletCity,
-	// 		OutletState:   updatedOutlet.OutletState,
-	// 		OutletCountry: updatedOutlet.OutletCountry,
-	// 		BusinessID:    updatedOutlet.BusinessID,
-	// 	}
-
-	// 	return c.JSON(response)
+	// v1.Post("/profile",func(c *fiber.Ctx) error {
 
 	// })
+}
+func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {
+	claims := &jwt.StandardClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(os.Getenv("JWT_SECRET")), nil
+	})
 
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+
+	return claims, nil
 }
 
 type UpdateOutletRequest struct {
@@ -368,14 +382,15 @@ type CreateUserSessionParams struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"username"`
-	Password string `json:"password"`
+	Email    string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type LoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
 type User struct {
 	Username     string      `json:"username"`
 	Email        string      `json:"email"`
@@ -462,7 +477,8 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
+				"error":   "Invalid token",
+				"message": err.Error(),
 			})
 		}
 
@@ -571,3 +587,20 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 // }
 
 var jwtSecret = []byte("os.Getenv(JWT_SECRET)")
+
+func SendErrResponse(ctx *fiber.Ctx, err error, statusCode int) error {
+	return ctx.Status(statusCode).JSON(&fiber.Map{
+		"status": statusCode,
+		"error": &fiber.Map{
+			"message": err.Error(),
+		},
+	})
+}
+
+func SendSuccessResponse(ctx *fiber.Ctx, message string, data interface{}, statusCode int) error {
+	return ctx.Status(statusCode).JSON(&fiber.Map{
+		"status":  statusCode,
+		"message": message,
+		"data":    data,
+	})
+}

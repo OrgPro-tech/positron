@@ -11,6 +11,95 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type SpiceLevel string
+
+const (
+	SpiceLevelMild     SpiceLevel = "Mild"
+	SpiceLevelMedium   SpiceLevel = "Medium"
+	SpiceLevelHot      SpiceLevel = "Hot"
+	SpiceLevelExtraHot SpiceLevel = "Extra Hot"
+)
+
+func (e *SpiceLevel) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpiceLevel(s)
+	case string:
+		*e = SpiceLevel(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpiceLevel: %T", src)
+	}
+	return nil
+}
+
+type NullSpiceLevel struct {
+	SpiceLevel SpiceLevel `json:"SpiceLevel"`
+	Valid      bool       `json:"valid"` // Valid is true if SpiceLevel is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpiceLevel) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpiceLevel, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpiceLevel.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpiceLevel) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpiceLevel), nil
+}
+
+type Unit string
+
+const (
+	UnitKG    Unit = "KG"
+	UnitGRAM  Unit = "GRAM"
+	UnitLITRE Unit = "LITRE"
+	UnitML    Unit = "ML"
+	UnitPCS   Unit = "PCS"
+)
+
+func (e *Unit) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Unit(s)
+	case string:
+		*e = Unit(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Unit: %T", src)
+	}
+	return nil
+}
+
+type NullUnit struct {
+	Unit  Unit `json:"Unit"`
+	Valid bool `json:"valid"` // Valid is true if Unit is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUnit) Scan(value interface{}) error {
+	if value == nil {
+		ns.Unit, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Unit.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUnit) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Unit), nil
+}
+
 type UserType string
 
 const (
@@ -74,6 +163,39 @@ type Business struct {
 	AccountHolderName         string `json:"account_holder_name"`
 }
 
+type Category struct {
+	ID          int32       `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	BusinessID  int32       `json:"business_id"`
+}
+
+type Ingredient struct {
+	ID            int32       `json:"id"`
+	Name          string      `json:"name"`
+	Unit          NullUnit    `json:"unit"`
+	StockQuantity pgtype.Int4 `json:"stock_quantity"`
+}
+
+type MenuItem struct {
+	ID           int32          `json:"id"`
+	CategoryID   pgtype.Int4    `json:"category_id"`
+	Name         string         `json:"name"`
+	Description  pgtype.Text    `json:"description"`
+	Price        pgtype.Numeric `json:"price"`
+	IsVegetarian bool           `json:"is_vegetarian"`
+	SpiceLevel   NullSpiceLevel `json:"spice_level"`
+	IsAvailable  bool           `json:"is_available"`
+	BusinessID   int32          `json:"business_id"`
+	IsDeleted    bool           `json:"is_deleted"`
+}
+
+type MenuItemIngredient struct {
+	ItemID       int32          `json:"item_id"`
+	IngredientID int32          `json:"ingredient_id"`
+	Quantity     pgtype.Numeric `json:"quantity"`
+}
+
 type Outlet struct {
 	ID            int32  `json:"id"`
 	OutletName    string `json:"outlet_name"`
@@ -83,6 +205,14 @@ type Outlet struct {
 	OutletState   string `json:"outlet_state"`
 	OutletCountry string `json:"outlet_country"`
 	BusinessID    int32  `json:"business_id"`
+}
+
+type OutletMenuItem struct {
+	ID          int32          `json:"id"`
+	MenuItemID  int32          `json:"menu_item_id"`
+	OutletID    int32          `json:"outlet_id"`
+	Price       pgtype.Numeric `json:"price"`
+	IsAvailable bool           `json:"is_available"`
 }
 
 type PrismaMigration struct {
@@ -112,7 +242,7 @@ type UserOutlet struct {
 	ID         int32  `json:"id"`
 	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
-	OutletID   string `json:"outlet_id"`
+	OutletID   int32  `json:"outlet_id"`
 }
 
 type UserSession struct {

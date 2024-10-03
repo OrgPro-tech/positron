@@ -239,3 +239,6 @@ LIMIT 1;
 -- name: DeleteUserSessions :exec
 DELETE FROM user_sessions
 WHERE user_id = $1;
+
+-- name: GetUserSessionByRefreshToken :one
+SELECT * FROM user_sessions WHERE refresh_token = $1 LIMIT 1;

@@ -265,7 +265,7 @@ RETURNING id, user_id, business_id, outlet_id
 type CreateUserOutletParams struct {
 	UserID     int32  `json:"user_id"`
 	BusinessID string `json:"business_id"`
-	OutletID   string `json:"outlet_id"`
+	OutletID   int32  `json:"outlet_id"`
 }
 
 func (q *Queries) CreateUserOutlet(ctx context.Context, arg CreateUserOutletParams) (UserOutlet, error) {
@@ -736,6 +736,24 @@ func (q *Queries) GetUserOutletByID(ctx context.Context, id int32) (UserOutlet, 
 		&i.UserID,
 		&i.BusinessID,
 		&i.OutletID,
+	)
+	return i, err
+}
+
+const getUserSessionByRefreshToken = `-- name: GetUserSessionByRefreshToken :one
+SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions WHERE refresh_token = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserSessionByRefreshToken(ctx context.Context, refreshToken string) (UserSession, error) {
+	row := q.db.QueryRow(ctx, getUserSessionByRefreshToken, refreshToken)
+	var i UserSession
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpireAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }
