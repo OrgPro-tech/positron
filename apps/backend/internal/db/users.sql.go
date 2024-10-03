@@ -740,6 +740,84 @@ func (q *Queries) GetUserOutletByID(ctx context.Context, id int32) (UserOutlet, 
 	return i, err
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+SELECT 
+    u.id,
+    u.name,
+    u.email,
+    u.mobile_number,
+    u.user_type,
+    u.username,
+    b.id AS business_id,
+    b.company_name,
+    b.contact_person_name,
+    b.contact_person_email,
+    b.contact_person_mobile_number,
+    b.address,
+    b.pin,
+    b.city,
+    b.state,
+    b.country,
+    b.business_type,
+    b.gst,
+    b.pan
+FROM 
+    users u
+JOIN 
+    businesses b ON u.business_id = b.id
+WHERE 
+    u.id = $1
+`
+
+type GetUserProfileRow struct {
+	ID                        int32    `json:"id"`
+	Name                      string   `json:"name"`
+	Email                     string   `json:"email"`
+	MobileNumber              string   `json:"mobile_number"`
+	UserType                  UserType `json:"user_type"`
+	Username                  string   `json:"username"`
+	BusinessID                int32    `json:"business_id"`
+	CompanyName               string   `json:"company_name"`
+	ContactPersonName         string   `json:"contact_person_name"`
+	ContactPersonEmail        string   `json:"contact_person_email"`
+	ContactPersonMobileNumber string   `json:"contact_person_mobile_number"`
+	Address                   string   `json:"address"`
+	Pin                       int32    `json:"pin"`
+	City                      string   `json:"city"`
+	State                     string   `json:"state"`
+	Country                   string   `json:"country"`
+	BusinessType              string   `json:"business_type"`
+	Gst                       string   `json:"gst"`
+	Pan                       string   `json:"pan"`
+}
+
+func (q *Queries) GetUserProfile(ctx context.Context, id int32) (GetUserProfileRow, error) {
+	row := q.db.QueryRow(ctx, getUserProfile, id)
+	var i GetUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.MobileNumber,
+		&i.UserType,
+		&i.Username,
+		&i.BusinessID,
+		&i.CompanyName,
+		&i.ContactPersonName,
+		&i.ContactPersonEmail,
+		&i.ContactPersonMobileNumber,
+		&i.Address,
+		&i.Pin,
+		&i.City,
+		&i.State,
+		&i.Country,
+		&i.BusinessType,
+		&i.Gst,
+		&i.Pan,
+	)
+	return i, err
+}
+
 const getUserSessionByRefreshToken = `-- name: GetUserSessionByRefreshToken :one
 SELECT id, user_id, access_token, refresh_token, expire_at, created_at FROM user_sessions WHERE refresh_token = $1 LIMIT 1
 `
