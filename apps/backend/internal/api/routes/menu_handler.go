@@ -71,6 +71,21 @@ func (s *Server) CreateMenuItem(c *fiber.Ctx) error {
 
 	return SendSuccessResponse(c, "Menu created successfully", menuItem, fiber.StatusCreated) //c.Status(fiber.StatusCreated).JSON(menuItem)
 }
+func (s *Server) GetAllMenuItemsByBusinessID(c *fiber.Ctx) error {
+	businessID := c.Locals("business_id").(int32)
+
+	if businessID == 0 {
+		return SendErrResponse(c, errors.New("Invalid business ID"), fiber.StatusBadRequest)
+	}
+
+	menuItems, err := s.Queries.GetAllMenuItemsByBusinessID(c.Context(), int32(businessID))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch menu items"})
+	}
+
+	return SendSuccessResponse(c, "Fetch successful", menuItems, fiber.StatusOK)
+	//c.JSON(menuItems)
+}
 
 func (s *Server) CreateCategory(c *fiber.Ctx) error {
 
@@ -116,5 +131,5 @@ func (s *Server) GetAllCategories(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch categories"})
 	}
 
-	return SendSuccessResponse(c, "Category successfully created", categories, fiber.StatusOK)
+	return SendSuccessResponse(c, "Fetch successful", categories, fiber.StatusOK)
 }
