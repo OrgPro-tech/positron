@@ -684,6 +684,72 @@ func (q *Queries) GetAllCategories(ctx context.Context, businessID int32) ([]Cat
 	return items, nil
 }
 
+const getAllMenuItemsByBusinessID = `-- name: GetAllMenuItemsByBusinessID :many
+SELECT 
+    mi.id,
+    mi.category_id,
+    mi.name,
+    mi.description,
+    mi.price,
+    mi.is_vegetarian,
+    mi.spice_level,
+    mi.is_available,
+    mi.is_deleted,
+    c.name AS category_name
+FROM 
+    menu_items mi
+LEFT JOIN 
+    categories c ON mi.category_id = c.id
+WHERE 
+    mi.business_id = $1 AND mi.is_deleted = false
+ORDER BY 
+    mi.name
+`
+
+type GetAllMenuItemsByBusinessIDRow struct {
+	ID           int32          `json:"id"`
+	CategoryID   int32          `json:"category_id"`
+	Name         string         `json:"name"`
+	Description  pgtype.Text    `json:"description"`
+	Price        pgtype.Numeric `json:"price"`
+	IsVegetarian bool           `json:"is_vegetarian"`
+	SpiceLevel   NullSpiceLevel `json:"spice_level"`
+	IsAvailable  bool           `json:"is_available"`
+	IsDeleted    bool           `json:"is_deleted"`
+	CategoryName pgtype.Text    `json:"category_name"`
+}
+
+func (q *Queries) GetAllMenuItemsByBusinessID(ctx context.Context, businessID int32) ([]GetAllMenuItemsByBusinessIDRow, error) {
+	rows, err := q.db.Query(ctx, getAllMenuItemsByBusinessID, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllMenuItemsByBusinessIDRow
+	for rows.Next() {
+		var i GetAllMenuItemsByBusinessIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.Price,
+			&i.IsVegetarian,
+			&i.SpiceLevel,
+			&i.IsAvailable,
+			&i.IsDeleted,
+			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBusinessByID = `-- name: GetBusinessByID :one
 SELECT id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name FROM businesses
 WHERE id = $1 LIMIT 1

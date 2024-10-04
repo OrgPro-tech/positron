@@ -289,3 +289,25 @@ INSERT INTO menu_items (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
+
+
+-- name: GetAllMenuItemsByBusinessID :many
+SELECT 
+    mi.id,
+    mi.category_id,
+    mi.name,
+    mi.description,
+    mi.price,
+    mi.is_vegetarian,
+    mi.spice_level,
+    mi.is_available,
+    mi.is_deleted,
+    c.name AS category_name
+FROM 
+    menu_items mi
+LEFT JOIN 
+    categories c ON mi.category_id = c.id
+WHERE 
+    mi.business_id = $1 AND mi.is_deleted = false
+ORDER BY 
+    mi.name;
