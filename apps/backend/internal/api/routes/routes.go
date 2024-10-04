@@ -146,18 +146,6 @@ type User struct {
 	Password     string      `json:"password"`
 }
 
-// func UserFromSQL(u db.User) User {
-// 	return User{
-// 		Username:     u.Username,
-// 		Email:        u.Email,
-// 		Name:         u.Name,
-// 		MobileNumber: u.MobileNumber,
-// 		UserType:     userTypeToString(u.UserType),
-// 		BusinessID:   nullStringToString(u.BusinessID),
-// 		OutletID:     nullStringToString(u.OutletID),
-// 	}
-// }
-
 func nullStringToString(text pgtype.Text) string {
 	if text.Valid {
 		return text.String
