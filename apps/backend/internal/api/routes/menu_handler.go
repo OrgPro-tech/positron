@@ -2,6 +2,7 @@ package routes
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/OrgPro-tech/positron/backend/internal/db"
 	"github.com/OrgPro-tech/positron/backend/pkg/validator"
@@ -13,6 +14,62 @@ type CreateCategoryRequest struct {
 	Name        string  `json:"name" validate:"required,max=50"`
 	Description *string `json:"description"`
 	BusinessID  int32   `json:"business_id" validate:"required"`
+}
+
+type CreateMenuItemRequest struct {
+	CategoryID   int32   `json:"category_id"`
+	Name         string  `json:"name" validate:"required,max=100"`
+	Description  *string `json:"description"`
+	Price        float32 `json:"price" validate:"required"`
+	IsVegetarian bool    `json:"is_vegetarian"`
+	SpiceLevel   *string `json:"spice_level" validate:"omitempty,oneof=Mild Medium Hot ExtraHot"`
+	IsAvailable  bool    `json:"is_available"`
+}
+
+func float32ToPgNumeric(f float32) pgtype.Numeric {
+	return pgtype.Numeric{
+		Int:   new(big.Int).SetInt64(int64(f * 100)), // Multiply by 100 to preserve 2 decimal places
+		Exp:   -2,                                    // Set the exponent to -2 to account for the multiplication
+		Valid: true,
+	}
+}
+func (s *Server) CreateMenuItem(c *fiber.Ctx) error {
+	businessID := c.Locals("business_id").(int32)
+
+	if businessID == 0 {
+		return SendErrResponse(c, errors.New("Invalid business ID"), fiber.StatusBadRequest)
+	}
+
+	req, validationErrors, err := validator.ValidateJSONBody[CreateMenuItemRequest](c)
+	if err != nil {
+		return SendErrResponse(c, err, fiber.StatusInternalServerError)
+	}
+	if len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"errors": validationErrors,
+		})
+	}
+
+	// Create the menu item
+	menuItem, err := s.Queries.CreateMenuItem(c.Context(), db.CreateMenuItemParams{
+		CategoryID:   req.CategoryID,
+		Name:         req.Name,
+		Description:  pgtype.Text{String: *req.Description, Valid: req.Description != nil},
+		Price:        float32ToPgNumeric(req.Price), //req.Price,
+		IsVegetarian: req.IsVegetarian,
+		SpiceLevel: db.NullSpiceLevel{
+			SpiceLevel: db.SpiceLevel(*req.SpiceLevel),
+			Valid:      req.SpiceLevel != nil,
+		},
+
+		IsAvailable: req.IsAvailable,
+		BusinessID:  int32(businessID),
+	})
+	if err != nil {
+		return SendErrResponse(c, err, fiber.StatusInternalServerError)
+	}
+
+	return SendSuccessResponse(c, "Menu created successfully", menuItem, fiber.StatusCreated) //c.Status(fiber.StatusCreated).JSON(menuItem)
 }
 
 func (s *Server) CreateCategory(c *fiber.Ctx) error {

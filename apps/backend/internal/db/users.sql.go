@@ -110,6 +110,53 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	return i, err
 }
 
+const createMenuItem = `-- name: CreateMenuItem :one
+INSERT INTO menu_items (
+    category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8
+)
+RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted
+`
+
+type CreateMenuItemParams struct {
+	CategoryID   int32          `json:"category_id"`
+	Name         string         `json:"name"`
+	Description  pgtype.Text    `json:"description"`
+	Price        pgtype.Numeric `json:"price"`
+	IsVegetarian bool           `json:"is_vegetarian"`
+	SpiceLevel   NullSpiceLevel `json:"spice_level"`
+	IsAvailable  bool           `json:"is_available"`
+	BusinessID   int32          `json:"business_id"`
+}
+
+func (q *Queries) CreateMenuItem(ctx context.Context, arg CreateMenuItemParams) (MenuItem, error) {
+	row := q.db.QueryRow(ctx, createMenuItem,
+		arg.CategoryID,
+		arg.Name,
+		arg.Description,
+		arg.Price,
+		arg.IsVegetarian,
+		arg.SpiceLevel,
+		arg.IsAvailable,
+		arg.BusinessID,
+	)
+	var i MenuItem
+	err := row.Scan(
+		&i.ID,
+		&i.CategoryID,
+		&i.Name,
+		&i.Description,
+		&i.Price,
+		&i.IsVegetarian,
+		&i.SpiceLevel,
+		&i.IsAvailable,
+		&i.BusinessID,
+		&i.IsDeleted,
+	)
+	return i, err
+}
+
 const createOutlet = `-- name: CreateOutlet :one
 INSERT INTO outlets (
   outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state,

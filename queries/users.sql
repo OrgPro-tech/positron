@@ -281,3 +281,11 @@ ORDER BY name;
 INSERT INTO categories (name, description, business_id)
 VALUES ($1, $2, $3)
 RETURNING *;
+
+-- name: CreateMenuItem :one
+INSERT INTO menu_items (
+    category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8
+)
+RETURNING *;

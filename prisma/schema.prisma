@@ -107,19 +107,18 @@ model Category {
 }
 
 model MenuItem {
-  id              Int                  @id @default(autoincrement())
-  category_id     Int?
-  name            String               @db.VarChar(100)
-  description     String?              @db.Text
-  price           Decimal              @db.Decimal(10, 2)
-  is_vegetarian   Boolean              @default(false)
+  id              Int              @id @default(autoincrement())
+  category_id     Int
+  name            String           @db.VarChar(100)
+  description     String?          @db.Text
+  price           Decimal          @db.Decimal(10, 2)
+  is_vegetarian   Boolean          @default(false)
   spice_level     SpiceLevel?
-  is_available    Boolean              @default(true)
-  is_deleted      Boolean              @default(false)
-  category        Category?            @relation(fields: [category_id], references: [id])
-  ingredients     MenuItemIngredient[]
+  is_available    Boolean          @default(true)
+  is_deleted      Boolean          @default(false)
+  category        Category         @relation(fields: [category_id], references: [id])
   OutletMenuItems OutletMenuItem[]
-  business        Business             @relation(fields: [business_id], references: [id])
+  business        Business         @relation(fields: [business_id], references: [id])
   business_id     Int
 
   @@map("menu_items")
@@ -147,7 +146,6 @@ model MenuItemIngredient {
   item_id       Int
   ingredient_id Int
   quantity      Decimal    @db.Decimal(10, 2)
-  menu_item     MenuItem   @relation(fields: [item_id], references: [id])
   ingredient    Ingredient @relation(fields: [ingredient_id], references: [id])
 
   @@id([item_id, ingredient_id])

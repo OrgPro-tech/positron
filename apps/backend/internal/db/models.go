@@ -179,7 +179,7 @@ type Ingredient struct {
 
 type MenuItem struct {
 	ID           int32          `json:"id"`
-	CategoryID   pgtype.Int4    `json:"category_id"`
+	CategoryID   int32          `json:"category_id"`
 	Name         string         `json:"name"`
 	Description  pgtype.Text    `json:"description"`
 	Price        pgtype.Numeric `json:"price"`
