@@ -20,7 +20,7 @@ INSERT INTO users (
 RETURNING id;
 
 -- name: GetUserByUsernameOrEmail :one
-SELECT id, username, password, email, name,  user_type
+SELECT id, username, password, email, name, user_type, business_id
 FROM users
 WHERE username = $1 OR email = $1
 LIMIT 1;
@@ -271,3 +271,13 @@ JOIN
     businesses b ON u.business_id = b.id
 WHERE 
     u.id = $1;
+
+-- name: GetAllCategories :many
+SELECT * FROM categories
+WHERE business_id = $1
+ORDER BY name;
+
+-- name: CreateCategory :one
+INSERT INTO categories (name, description, business_id)
+VALUES ($1, $2, $3)
+RETURNING *;

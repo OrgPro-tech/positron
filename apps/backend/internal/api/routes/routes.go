@@ -58,6 +58,9 @@ func (s *Server) InitializeRoutes() {
 	v1.Use(VerifyJWTToken(s.Queries))
 	v1.Post("/create-outlet", s.CreateOutlet)
 	v1.Get("/profile", s.GetProfile)
+	v1.Post("/create-category", s.CreateCategory)
+	v1.Get("/get-category", s.GetAllCategories)
+
 }
 func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {
 	claims := &jwt.StandardClaims{}
@@ -95,10 +98,11 @@ func userHasAccessToOutlet(ctx context.Context, userID string, outletID uuid.UUI
 	return true
 }
 
-func generateAccessToken(userID int32) (string, error) {
+func generateAccessToken(userID, businessId int32) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
-		"exp":     time.Now().Add(15 * time.Minute).Unix(), // Token expires in 15 minutes
+		"user_id":     userID,
+		"business_id": businessId,
+		"exp":         time.Now().Add(24 * time.Hour).Unix(), // Token expires in 15 minutes
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte("os.Getenv(JWT_SECRET)"))
@@ -231,6 +235,12 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 				})
 			}
 
+			businessId, ok := claims["business_id"].(float64)
+			if !ok && businessId == 0 {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "Invalid token claims",
+				})
+			}
 			// Query the database to find the user session
 			session, err := queries.GetUserSessionByUserID(context.Background(), int32(userId))
 			if err != nil {
@@ -253,6 +263,7 @@ func VerifyJWTToken(queries *db.Queries) fiber.Handler {
 
 			// Set the user ID in the context for use in subsequent handlers
 			c.Locals("userId", session.UserID)
+			c.Locals("business_id", int32(businessId))
 
 			// Continue to the next middleware or route handler
 			return c.Next()

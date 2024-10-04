@@ -86,6 +86,30 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 	return i, err
 }
 
+const createCategory = `-- name: CreateCategory :one
+INSERT INTO categories (name, description, business_id)
+VALUES ($1, $2, $3)
+RETURNING id, name, description, business_id
+`
+
+type CreateCategoryParams struct {
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+	BusinessID  int32       `json:"business_id"`
+}
+
+func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error) {
+	row := q.db.QueryRow(ctx, createCategory, arg.Name, arg.Description, arg.BusinessID)
+	var i Category
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.BusinessID,
+	)
+	return i, err
+}
+
 const createOutlet = `-- name: CreateOutlet :one
 INSERT INTO outlets (
   outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state,
@@ -582,6 +606,37 @@ func (q *Queries) DeleteUserSessions(ctx context.Context, userID int32) error {
 	return err
 }
 
+const getAllCategories = `-- name: GetAllCategories :many
+SELECT id, name, description, business_id FROM categories
+WHERE business_id = $1
+ORDER BY name
+`
+
+func (q *Queries) GetAllCategories(ctx context.Context, businessID int32) ([]Category, error) {
+	rows, err := q.db.Query(ctx, getAllCategories, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Category
+	for rows.Next() {
+		var i Category
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.BusinessID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getBusinessByID = `-- name: GetBusinessByID :one
 SELECT id, contact_person_name, contact_person_email, contact_person_mobile_number, company_name, address, pin, city, state, country, business_type, gst, pan, bank_account_number, bank_name, ifsc_code, account_type, account_holder_name FROM businesses
 WHERE id = $1 LIMIT 1
@@ -694,19 +749,20 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const getUserByUsernameOrEmail = `-- name: GetUserByUsernameOrEmail :one
-SELECT id, username, password, email, name,  user_type
+SELECT id, username, password, email, name, user_type, business_id
 FROM users
 WHERE username = $1 OR email = $1
 LIMIT 1
 `
 
 type GetUserByUsernameOrEmailRow struct {
-	ID       int32    `json:"id"`
-	Username string   `json:"username"`
-	Password string   `json:"password"`
-	Email    string   `json:"email"`
-	Name     string   `json:"name"`
-	UserType UserType `json:"user_type"`
+	ID         int32    `json:"id"`
+	Username   string   `json:"username"`
+	Password   string   `json:"password"`
+	Email      string   `json:"email"`
+	Name       string   `json:"name"`
+	UserType   UserType `json:"user_type"`
+	BusinessID int32    `json:"business_id"`
 }
 
 func (q *Queries) GetUserByUsernameOrEmail(ctx context.Context, username string) (GetUserByUsernameOrEmailRow, error) {
@@ -719,6 +775,7 @@ func (q *Queries) GetUserByUsernameOrEmail(ctx context.Context, username string)
 		&i.Email,
 		&i.Name,
 		&i.UserType,
+		&i.BusinessID,
 	)
 	return i, err
 }

@@ -48,7 +48,7 @@ func (s *Server) Login(c *fiber.Ctx) error {
 	}
 
 	// Generate tokens
-	accessToken, err := generateAccessToken(user.ID)
+	accessToken, err := generateAccessToken(user.ID, user.BusinessID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate access token"})
 	}
@@ -78,7 +78,7 @@ func (s *Server) Login(c *fiber.Ctx) error {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpireAt: pgtype.Timestamp{
-			Time:  time.Now().Add(15 * time.Minute),
+			Time:  time.Now().Add(24 * time.Hour),
 			Valid: true,
 		},
 	},
