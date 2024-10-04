@@ -58,6 +58,7 @@ model Business {
   users                        User[]
   MenuItem                     MenuItem[]
   Category                     Category[]
+  Customer                     Customer[]
 
   @@map("businesses")
 }
@@ -74,6 +75,7 @@ model Outlet {
   business       Business         @relation(fields: [business_id], references: [id])
   users          User[]
   OutletMenuItem OutletMenuItem[]
+  Customer       Customer[]
 
   @@map("outlets")
 }
@@ -167,4 +169,19 @@ model OutletMenuItem {
   outlet       Outlet   @relation(fields: [outlet_id], references: [id])
   price        Decimal  @db.Decimal(10, 2)
   is_available Boolean  @default(true)
+}
+
+model Customer {
+  id           Int      @id @default(autoincrement())
+  phone_number String   @unique
+  name         String
+  whatsapp     Boolean? @default(false)
+  email        String?
+  address      String?
+  outlet_id    Int
+  outlet       Outlet   @relation(fields: [outlet_id], references: [id])
+  business     Business @relation(fields: [business_id], references: [id])
+  business_id  Int
+
+  @@map("customer")
 }

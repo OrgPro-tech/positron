@@ -62,6 +62,8 @@ func (s *Server) InitializeRoutes() {
 	v1.Get("/get-category", s.GetAllCategories)
 	v1.Post("/create-menu", s.CreateMenuItem)
 	v1.Get("/business/get-menu", s.GetAllMenuItemsByBusinessID)
+	v1.Post("/create-customer", s.CreateCustomer)
+	v1.Get("/get-customer", s.GetCustomersByBusinessId)
 
 }
 func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {

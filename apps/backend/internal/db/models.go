@@ -170,6 +170,17 @@ type Category struct {
 	BusinessID  int32       `json:"business_id"`
 }
 
+type Customer struct {
+	ID          int32       `json:"id"`
+	PhoneNumber string      `json:"phone_number"`
+	Name        string      `json:"name"`
+	Email       pgtype.Text `json:"email"`
+	Address     pgtype.Text `json:"address"`
+	OutletID    int32       `json:"outlet_id"`
+	BusinessID  int32       `json:"business_id"`
+	Whatsapp    pgtype.Bool `json:"whatsapp"`
+}
+
 type Ingredient struct {
 	ID            int32       `json:"id"`
 	Name          string      `json:"name"`

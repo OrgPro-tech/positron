@@ -110,6 +110,46 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	return i, err
 }
 
+const createCustomer = `-- name: CreateCustomer :one
+INSERT INTO customer (phone_number, name, whatsapp, email, address, outlet_id, business_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, phone_number, name, email, address, outlet_id, business_id, whatsapp
+`
+
+type CreateCustomerParams struct {
+	PhoneNumber string      `json:"phone_number"`
+	Name        string      `json:"name"`
+	Whatsapp    pgtype.Bool `json:"whatsapp"`
+	Email       pgtype.Text `json:"email"`
+	Address     pgtype.Text `json:"address"`
+	OutletID    int32       `json:"outlet_id"`
+	BusinessID  int32       `json:"business_id"`
+}
+
+func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error) {
+	row := q.db.QueryRow(ctx, createCustomer,
+		arg.PhoneNumber,
+		arg.Name,
+		arg.Whatsapp,
+		arg.Email,
+		arg.Address,
+		arg.OutletID,
+		arg.BusinessID,
+	)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.PhoneNumber,
+		&i.Name,
+		&i.Email,
+		&i.Address,
+		&i.OutletID,
+		&i.BusinessID,
+		&i.Whatsapp,
+	)
+	return i, err
+}
+
 const createMenuItem = `-- name: CreateMenuItem :one
 INSERT INTO menu_items (
     category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id
@@ -603,6 +643,15 @@ func (q *Queries) DeleteBusiness(ctx context.Context, id int32) error {
 	return err
 }
 
+const deleteCustomer = `-- name: DeleteCustomer :exec
+DELETE FROM customer WHERE id = $1
+`
+
+func (q *Queries) DeleteCustomer(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteCustomer, id)
+	return err
+}
+
 const deleteOutlet = `-- name: DeleteOutlet :exec
 DELETE FROM outlets
 WHERE id = $1
@@ -779,6 +828,92 @@ func (q *Queries) GetBusinessByID(ctx context.Context, id int32) (Business, erro
 		&i.AccountHolderName,
 	)
 	return i, err
+}
+
+const getCustomerByID = `-- name: GetCustomerByID :one
+SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE id = $1
+`
+
+func (q *Queries) GetCustomerByID(ctx context.Context, id int32) (Customer, error) {
+	row := q.db.QueryRow(ctx, getCustomerByID, id)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.PhoneNumber,
+		&i.Name,
+		&i.Email,
+		&i.Address,
+		&i.OutletID,
+		&i.BusinessID,
+		&i.Whatsapp,
+	)
+	return i, err
+}
+
+const getCustomersByBusinessID = `-- name: GetCustomersByBusinessID :many
+SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE business_id = $1
+`
+
+func (q *Queries) GetCustomersByBusinessID(ctx context.Context, businessID int32) ([]Customer, error) {
+	rows, err := q.db.Query(ctx, getCustomersByBusinessID, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Customer
+	for rows.Next() {
+		var i Customer
+		if err := rows.Scan(
+			&i.ID,
+			&i.PhoneNumber,
+			&i.Name,
+			&i.Email,
+			&i.Address,
+			&i.OutletID,
+			&i.BusinessID,
+			&i.Whatsapp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCustomersByOutletId = `-- name: GetCustomersByOutletId :many
+SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE outlet_id = $1
+`
+
+func (q *Queries) GetCustomersByOutletId(ctx context.Context, outletID int32) ([]Customer, error) {
+	rows, err := q.db.Query(ctx, getCustomersByOutletId, outletID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Customer
+	for rows.Next() {
+		var i Customer
+		if err := rows.Scan(
+			&i.ID,
+			&i.PhoneNumber,
+			&i.Name,
+			&i.Email,
+			&i.Address,
+			&i.OutletID,
+			&i.BusinessID,
+			&i.Whatsapp,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLatestUserSession = `-- name: GetLatestUserSession :one
@@ -1269,6 +1404,47 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		&i.IfscCode,
 		&i.AccountType,
 		&i.AccountHolderName,
+	)
+	return i, err
+}
+
+const updateCustomer = `-- name: UpdateCustomer :one
+UPDATE customer
+SET phone_number = $2, name = $3, whatsapp = $4, email = $5, address = $6, outlet_id = $7
+WHERE id = $1
+RETURNING id, phone_number, name, email, address, outlet_id, business_id, whatsapp
+`
+
+type UpdateCustomerParams struct {
+	ID          int32       `json:"id"`
+	PhoneNumber string      `json:"phone_number"`
+	Name        string      `json:"name"`
+	Whatsapp    pgtype.Bool `json:"whatsapp"`
+	Email       pgtype.Text `json:"email"`
+	Address     pgtype.Text `json:"address"`
+	OutletID    int32       `json:"outlet_id"`
+}
+
+func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error) {
+	row := q.db.QueryRow(ctx, updateCustomer,
+		arg.ID,
+		arg.PhoneNumber,
+		arg.Name,
+		arg.Whatsapp,
+		arg.Email,
+		arg.Address,
+		arg.OutletID,
+	)
+	var i Customer
+	err := row.Scan(
+		&i.ID,
+		&i.PhoneNumber,
+		&i.Name,
+		&i.Email,
+		&i.Address,
+		&i.OutletID,
+		&i.BusinessID,
+		&i.Whatsapp,
 	)
 	return i, err
 }
