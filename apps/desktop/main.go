@@ -72,7 +72,7 @@ func main() {
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 			About: &mac.AboutInfo{
-				Title:   "desktop",
+				Title:   "Positron",
 				Message: "",
 				Icon:    icon,
 			},

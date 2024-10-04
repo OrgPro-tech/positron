@@ -5,3 +5,5 @@ node_modules
 schema.sql
 output.sql
 __debug_*
+
+build
