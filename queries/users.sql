@@ -314,24 +314,24 @@ ORDER BY
 
 
 -- name: CreateCustomer :one
-INSERT INTO customer (phone_number, name, whatsapp, email, address, outlet_id, business_id)
+INSERT INTO customers (phone_number, name, whatsapp, email, address, outlet_id, business_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetCustomerByID :one
-SELECT * FROM customer WHERE id = $1;
+SELECT * FROM customers WHERE id = $1;
 
 -- name: GetCustomersByBusinessID :many
-SELECT * FROM customer WHERE business_id = $1;
+SELECT * FROM customers WHERE business_id = $1;
 
 -- name: GetCustomersByOutletId :many
-SELECT * FROM customer WHERE outlet_id = $1;
+SELECT * FROM customers WHERE outlet_id = $1;
 
 -- name: UpdateCustomer :one
-UPDATE customer
+UPDATE customers
 SET phone_number = $2, name = $3, whatsapp = $4, email = $5, address = $6, outlet_id = $7
 WHERE id = $1
 RETURNING *;
 
 -- name: DeleteCustomer :exec
-DELETE FROM customer WHERE id = $1;
+DELETE FROM customers WHERE id = $1;

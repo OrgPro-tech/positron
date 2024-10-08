@@ -111,9 +111,9 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 }
 
 const createCustomer = `-- name: CreateCustomer :one
-INSERT INTO customer (phone_number, name, whatsapp, email, address, outlet_id, business_id)
+INSERT INTO customers (phone_number, name, whatsapp, email, address, outlet_id, business_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, phone_number, name, email, address, outlet_id, business_id, whatsapp
+RETURNING id, phone_number, name, whatsapp, email, address, outlet_id, business_id
 `
 
 type CreateCustomerParams struct {
@@ -141,11 +141,11 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 		&i.ID,
 		&i.PhoneNumber,
 		&i.Name,
+		&i.Whatsapp,
 		&i.Email,
 		&i.Address,
 		&i.OutletID,
 		&i.BusinessID,
-		&i.Whatsapp,
 	)
 	return i, err
 }
@@ -156,7 +156,7 @@ INSERT INTO menu_items (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted
+RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation
 `
 
 type CreateMenuItemParams struct {
@@ -193,6 +193,12 @@ func (q *Queries) CreateMenuItem(ctx context.Context, arg CreateMenuItemParams) 
 		&i.IsAvailable,
 		&i.BusinessID,
 		&i.IsDeleted,
+		&i.Code,
+		&i.Customizable,
+		&i.Image,
+		&i.SizeType,
+		&i.TaxPercentage,
+		&i.Variation,
 	)
 	return i, err
 }
@@ -644,7 +650,7 @@ func (q *Queries) DeleteBusiness(ctx context.Context, id int32) error {
 }
 
 const deleteCustomer = `-- name: DeleteCustomer :exec
-DELETE FROM customer WHERE id = $1
+DELETE FROM customers WHERE id = $1
 `
 
 func (q *Queries) DeleteCustomer(ctx context.Context, id int32) error {
@@ -831,7 +837,7 @@ func (q *Queries) GetBusinessByID(ctx context.Context, id int32) (Business, erro
 }
 
 const getCustomerByID = `-- name: GetCustomerByID :one
-SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE id = $1
+SELECT id, phone_number, name, whatsapp, email, address, outlet_id, business_id FROM customers WHERE id = $1
 `
 
 func (q *Queries) GetCustomerByID(ctx context.Context, id int32) (Customer, error) {
@@ -841,17 +847,17 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id int32) (Customer, erro
 		&i.ID,
 		&i.PhoneNumber,
 		&i.Name,
+		&i.Whatsapp,
 		&i.Email,
 		&i.Address,
 		&i.OutletID,
 		&i.BusinessID,
-		&i.Whatsapp,
 	)
 	return i, err
 }
 
 const getCustomersByBusinessID = `-- name: GetCustomersByBusinessID :many
-SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE business_id = $1
+SELECT id, phone_number, name, whatsapp, email, address, outlet_id, business_id FROM customers WHERE business_id = $1
 `
 
 func (q *Queries) GetCustomersByBusinessID(ctx context.Context, businessID int32) ([]Customer, error) {
@@ -867,11 +873,11 @@ func (q *Queries) GetCustomersByBusinessID(ctx context.Context, businessID int32
 			&i.ID,
 			&i.PhoneNumber,
 			&i.Name,
+			&i.Whatsapp,
 			&i.Email,
 			&i.Address,
 			&i.OutletID,
 			&i.BusinessID,
-			&i.Whatsapp,
 		); err != nil {
 			return nil, err
 		}
@@ -884,7 +890,7 @@ func (q *Queries) GetCustomersByBusinessID(ctx context.Context, businessID int32
 }
 
 const getCustomersByOutletId = `-- name: GetCustomersByOutletId :many
-SELECT id, phone_number, name, email, address, outlet_id, business_id, whatsapp FROM customer WHERE outlet_id = $1
+SELECT id, phone_number, name, whatsapp, email, address, outlet_id, business_id FROM customers WHERE outlet_id = $1
 `
 
 func (q *Queries) GetCustomersByOutletId(ctx context.Context, outletID int32) ([]Customer, error) {
@@ -900,11 +906,11 @@ func (q *Queries) GetCustomersByOutletId(ctx context.Context, outletID int32) ([
 			&i.ID,
 			&i.PhoneNumber,
 			&i.Name,
+			&i.Whatsapp,
 			&i.Email,
 			&i.Address,
 			&i.OutletID,
 			&i.BusinessID,
-			&i.Whatsapp,
 		); err != nil {
 			return nil, err
 		}
@@ -1409,10 +1415,10 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 }
 
 const updateCustomer = `-- name: UpdateCustomer :one
-UPDATE customer
+UPDATE customers
 SET phone_number = $2, name = $3, whatsapp = $4, email = $5, address = $6, outlet_id = $7
 WHERE id = $1
-RETURNING id, phone_number, name, email, address, outlet_id, business_id, whatsapp
+RETURNING id, phone_number, name, whatsapp, email, address, outlet_id, business_id
 `
 
 type UpdateCustomerParams struct {
@@ -1440,11 +1446,11 @@ func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) 
 		&i.ID,
 		&i.PhoneNumber,
 		&i.Name,
+		&i.Whatsapp,
 		&i.Email,
 		&i.Address,
 		&i.OutletID,
 		&i.BusinessID,
-		&i.Whatsapp,
 	)
 	return i, err
 }
