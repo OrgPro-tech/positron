@@ -11,13 +11,98 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type OrderStatus string
+
+const (
+	OrderStatusNEW       OrderStatus = "NEW"
+	OrderStatusPREPARING OrderStatus = "PREPARING"
+	OrderStatusREADY     OrderStatus = "READY"
+)
+
+func (e *OrderStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OrderStatus(s)
+	case string:
+		*e = OrderStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OrderStatus: %T", src)
+	}
+	return nil
+}
+
+type NullOrderStatus struct {
+	OrderStatus OrderStatus `json:"OrderStatus"`
+	Valid       bool        `json:"valid"` // Valid is true if OrderStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOrderStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.OrderStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OrderStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOrderStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OrderStatus), nil
+}
+
+type SizeType string
+
+const (
+	SizeTypeGRAM  SizeType = "GRAM"
+	SizeTypePIECE SizeType = "PIECE"
+)
+
+func (e *SizeType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SizeType(s)
+	case string:
+		*e = SizeType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SizeType: %T", src)
+	}
+	return nil
+}
+
+type NullSizeType struct {
+	SizeType SizeType `json:"SizeType"`
+	Valid    bool     `json:"valid"` // Valid is true if SizeType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSizeType) Scan(value interface{}) error {
+	if value == nil {
+		ns.SizeType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SizeType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSizeType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SizeType), nil
+}
+
 type SpiceLevel string
 
 const (
 	SpiceLevelMild     SpiceLevel = "Mild"
 	SpiceLevelMedium   SpiceLevel = "Medium"
 	SpiceLevelHot      SpiceLevel = "Hot"
-	SpiceLevelExtraHot SpiceLevel = "Extra Hot"
+	SpiceLevelExtraHot SpiceLevel = "ExtraHot"
 )
 
 func (e *SpiceLevel) Scan(src interface{}) error {
@@ -53,51 +138,6 @@ func (ns NullSpiceLevel) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.SpiceLevel), nil
-}
-
-type Unit string
-
-const (
-	UnitKG    Unit = "KG"
-	UnitGRAM  Unit = "GRAM"
-	UnitLITRE Unit = "LITRE"
-	UnitML    Unit = "ML"
-	UnitPCS   Unit = "PCS"
-)
-
-func (e *Unit) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Unit(s)
-	case string:
-		*e = Unit(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Unit: %T", src)
-	}
-	return nil
-}
-
-type NullUnit struct {
-	Unit  Unit `json:"Unit"`
-	Valid bool `json:"valid"` // Valid is true if Unit is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullUnit) Scan(value interface{}) error {
-	if value == nil {
-		ns.Unit, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Unit.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullUnit) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Unit), nil
 }
 
 type UserType string
@@ -174,37 +214,60 @@ type Customer struct {
 	ID          int32       `json:"id"`
 	PhoneNumber string      `json:"phone_number"`
 	Name        string      `json:"name"`
+	Whatsapp    pgtype.Bool `json:"whatsapp"`
 	Email       pgtype.Text `json:"email"`
 	Address     pgtype.Text `json:"address"`
 	OutletID    int32       `json:"outlet_id"`
 	BusinessID  int32       `json:"business_id"`
-	Whatsapp    pgtype.Bool `json:"whatsapp"`
-}
-
-type Ingredient struct {
-	ID            int32       `json:"id"`
-	Name          string      `json:"name"`
-	Unit          NullUnit    `json:"unit"`
-	StockQuantity pgtype.Int4 `json:"stock_quantity"`
 }
 
 type MenuItem struct {
-	ID           int32          `json:"id"`
-	CategoryID   int32          `json:"category_id"`
-	Name         string         `json:"name"`
-	Description  pgtype.Text    `json:"description"`
-	Price        pgtype.Numeric `json:"price"`
-	IsVegetarian bool           `json:"is_vegetarian"`
-	SpiceLevel   NullSpiceLevel `json:"spice_level"`
-	IsAvailable  bool           `json:"is_available"`
-	BusinessID   int32          `json:"business_id"`
-	IsDeleted    bool           `json:"is_deleted"`
+	ID            int32          `json:"id"`
+	CategoryID    int32          `json:"category_id"`
+	Name          string         `json:"name"`
+	Description   pgtype.Text    `json:"description"`
+	Price         pgtype.Numeric `json:"price"`
+	IsVegetarian  bool           `json:"is_vegetarian"`
+	SpiceLevel    NullSpiceLevel `json:"spice_level"`
+	IsAvailable   bool           `json:"is_available"`
+	BusinessID    int32          `json:"business_id"`
+	IsDeleted     bool           `json:"is_deleted"`
+	Code          string         `json:"code"`
+	Customizable  bool           `json:"customizable"`
+	Image         pgtype.Text    `json:"image"`
+	SizeType      SizeType       `json:"size_type"`
+	TaxPercentage int32          `json:"tax_percentage"`
+	Variation     []byte         `json:"variation"`
 }
 
-type MenuItemIngredient struct {
-	ItemID       int32          `json:"item_id"`
-	IngredientID int32          `json:"ingredient_id"`
-	Quantity     pgtype.Numeric `json:"quantity"`
+type Order struct {
+	ID          int32            `json:"id"`
+	CustomerID  int32            `json:"customer_id"`
+	PhoneNumber string           `json:"phone_number"`
+	Name        string           `json:"name"`
+	Email       pgtype.Text      `json:"email"`
+	Address     pgtype.Text      `json:"address"`
+	OrderID     string           `json:"order_id"`
+	Status      OrderStatus      `json:"status"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+	GstAmount   pgtype.Numeric   `json:"gst_amount"`
+	TotalAmount pgtype.Numeric   `json:"total_amount"`
+	NetAmount   pgtype.Numeric   `json:"net_amount"`
+}
+
+type OrderItem struct {
+	ID              int32          `json:"id"`
+	ItemCode        string         `json:"item_code"`
+	ItemDescription string         `json:"item_description"`
+	Variation       []byte         `json:"variation"`
+	Quantity        int32          `json:"quantity"`
+	UnitPrice       pgtype.Numeric `json:"unit_price"`
+	NetPrice        pgtype.Numeric `json:"net_price"`
+	TaxPrecentage   int32          `json:"tax_precentage"`
+	GstAmount       pgtype.Numeric `json:"gst_amount"`
+	TotalAmount     pgtype.Numeric `json:"total_amount"`
+	OrderID         int32          `json:"order_id"`
 }
 
 type Outlet struct {

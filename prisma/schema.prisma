@@ -122,43 +122,26 @@ model MenuItem {
   OutletMenuItems OutletMenuItem[]
   business        Business         @relation(fields: [business_id], references: [id])
   business_id     Int
+  code            String
+  tax_percentage  Int
+  size_type       SizeType
+  variation       Json?
+  customizable    Boolean
+  image           String?
 
   @@map("menu_items")
 }
 
-model Ingredient {
-  id                    Int                  @id @default(autoincrement())
-  name                  String               @db.VarChar(50)
-  unit                  Unit?
-  stock_quantity        Int?
-  menu_item_ingredients MenuItemIngredient[]
-
-  @@map("ingredients")
-}
-
-enum Unit {
-  KG
+enum SizeType {
   GRAM
-  LITRE
-  ML
-  PCS
-}
-
-model MenuItemIngredient {
-  item_id       Int
-  ingredient_id Int
-  quantity      Decimal    @db.Decimal(10, 2)
-  ingredient    Ingredient @relation(fields: [ingredient_id], references: [id])
-
-  @@id([item_id, ingredient_id])
-  @@map("menu_item_ingredients")
+  PIECE
 }
 
 enum SpiceLevel {
   Mild
   Medium
   Hot
-  ExtraHot @map("Extra Hot")
+  ExtraHot
 }
 
 model OutletMenuItem {
@@ -169,6 +152,8 @@ model OutletMenuItem {
   outlet       Outlet   @relation(fields: [outlet_id], references: [id])
   price        Decimal  @db.Decimal(10, 2)
   is_available Boolean  @default(true)
+
+  @@map("outlet_menu_items")
 }
 
 model Customer {
@@ -182,6 +167,50 @@ model Customer {
   outlet       Outlet   @relation(fields: [outlet_id], references: [id])
   business     Business @relation(fields: [business_id], references: [id])
   business_id  Int
+  Order        Order[]
 
-  @@map("customer")
+  @@map("customers")
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  customer_id  Int
+  customer     Customer    @relation(fields: [customer_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  phone_number String      @unique
+  name         String
+  email        String?
+  address      String?
+  OrderItem    OrderItem[]
+  order_id     String      @unique @db.VarChar(21)
+  status       OrderStatus @default(NEW)
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+  gst_amount   Decimal     @db.Decimal(10, 2)
+  total_amount Decimal     @db.Decimal(10, 2)
+  net_amount   Decimal     @db.Decimal(10, 2)
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  NEW
+  PREPARING
+  READY
+}
+
+model OrderItem {
+  id               Int     @id @default(autoincrement())
+  item_code        String
+  item_description String
+  variation        Json?
+  quantity         Int
+  unit_price       Decimal @db.Decimal(10, 2)
+  net_price        Decimal @db.Decimal(10, 2)
+  tax_precentage   Int
+  gst_amount       Decimal @db.Decimal(10, 2)
+  total_amount     Decimal @db.Decimal(10, 2)
+  order_id         Int
+  order            Order   @relation(fields: [order_id], references: [id])
+
+  @@map("order_items")
 }
