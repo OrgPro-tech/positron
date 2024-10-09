@@ -152,22 +152,29 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 
 const createMenuItem = `-- name: CreateMenuItem :one
 INSERT INTO menu_items (
-    category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id
+    category_id, name, description, price, is_vegetarian, spice_level,
+    is_available, business_id, code, tax_percentage, size_type, variation,
+    customizable, image
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
-)
-RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+) RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation
 `
 
 type CreateMenuItemParams struct {
-	CategoryID   int32          `json:"category_id"`
-	Name         string         `json:"name"`
-	Description  pgtype.Text    `json:"description"`
-	Price        pgtype.Numeric `json:"price"`
-	IsVegetarian bool           `json:"is_vegetarian"`
-	SpiceLevel   NullSpiceLevel `json:"spice_level"`
-	IsAvailable  bool           `json:"is_available"`
-	BusinessID   int32          `json:"business_id"`
+	CategoryID    int32          `json:"category_id"`
+	Name          string         `json:"name"`
+	Description   pgtype.Text    `json:"description"`
+	Price         pgtype.Numeric `json:"price"`
+	IsVegetarian  bool           `json:"is_vegetarian"`
+	SpiceLevel    NullSpiceLevel `json:"spice_level"`
+	IsAvailable   bool           `json:"is_available"`
+	BusinessID    int32          `json:"business_id"`
+	Code          string         `json:"code"`
+	TaxPercentage int32          `json:"tax_percentage"`
+	SizeType      SizeType       `json:"size_type"`
+	Variation     []byte         `json:"variation"`
+	Customizable  bool           `json:"customizable"`
+	Image         pgtype.Text    `json:"image"`
 }
 
 func (q *Queries) CreateMenuItem(ctx context.Context, arg CreateMenuItemParams) (MenuItem, error) {
@@ -180,6 +187,12 @@ func (q *Queries) CreateMenuItem(ctx context.Context, arg CreateMenuItemParams) 
 		arg.SpiceLevel,
 		arg.IsAvailable,
 		arg.BusinessID,
+		arg.Code,
+		arg.TaxPercentage,
+		arg.SizeType,
+		arg.Variation,
+		arg.Customizable,
+		arg.Image,
 	)
 	var i MenuItem
 	err := row.Scan(
@@ -943,6 +956,49 @@ func (q *Queries) GetLatestUserSession(ctx context.Context, userID int32) (UserS
 	return i, err
 }
 
+const getMenuItemsByBusinessID = `-- name: GetMenuItemsByBusinessID :many
+SELECT id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation FROM menu_items 
+WHERE business_id = $1 AND is_deleted = false
+ORDER BY category_id, name
+`
+
+func (q *Queries) GetMenuItemsByBusinessID(ctx context.Context, businessID int32) ([]MenuItem, error) {
+	rows, err := q.db.Query(ctx, getMenuItemsByBusinessID, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MenuItem
+	for rows.Next() {
+		var i MenuItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.Price,
+			&i.IsVegetarian,
+			&i.SpiceLevel,
+			&i.IsAvailable,
+			&i.BusinessID,
+			&i.IsDeleted,
+			&i.Code,
+			&i.Customizable,
+			&i.Image,
+			&i.SizeType,
+			&i.TaxPercentage,
+			&i.Variation,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOutletByID = `-- name: GetOutletByID :one
 SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id FROM outlets
 WHERE id = $1 LIMIT 1
@@ -1239,6 +1295,47 @@ func (q *Queries) ListBusinesses(ctx context.Context) ([]Business, error) {
 	return items, nil
 }
 
+const listMenuItems = `-- name: ListMenuItems :many
+SELECT id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation FROM menu_items WHERE business_id = $1 AND is_deleted = false
+`
+
+func (q *Queries) ListMenuItems(ctx context.Context, businessID int32) ([]MenuItem, error) {
+	rows, err := q.db.Query(ctx, listMenuItems, businessID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []MenuItem
+	for rows.Next() {
+		var i MenuItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.Price,
+			&i.IsVegetarian,
+			&i.SpiceLevel,
+			&i.IsAvailable,
+			&i.BusinessID,
+			&i.IsDeleted,
+			&i.Code,
+			&i.Customizable,
+			&i.Image,
+			&i.SizeType,
+			&i.TaxPercentage,
+			&i.Variation,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOutlets = `-- name: ListOutlets :many
 SELECT id, outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state, outlet_country, business_id FROM outlets
 WHERE business_id = $1
@@ -1451,6 +1548,72 @@ func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) 
 		&i.Address,
 		&i.OutletID,
 		&i.BusinessID,
+	)
+	return i, err
+}
+
+const updateMenuItem = `-- name: UpdateMenuItem :one
+UPDATE menu_items
+SET category_id = $2, name = $3, description = $4, price = $5,
+    is_vegetarian = $6, spice_level = $7, is_available = $8,
+    code = $9, tax_percentage = $10, size_type = $11, variation = $12,
+    customizable = $13, image = $14
+WHERE id = $1 AND is_deleted = false
+RETURNING id, category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id, is_deleted, code, customizable, image, size_type, tax_percentage, variation
+`
+
+type UpdateMenuItemParams struct {
+	ID            int32          `json:"id"`
+	CategoryID    int32          `json:"category_id"`
+	Name          string         `json:"name"`
+	Description   pgtype.Text    `json:"description"`
+	Price         pgtype.Numeric `json:"price"`
+	IsVegetarian  bool           `json:"is_vegetarian"`
+	SpiceLevel    NullSpiceLevel `json:"spice_level"`
+	IsAvailable   bool           `json:"is_available"`
+	Code          string         `json:"code"`
+	TaxPercentage int32          `json:"tax_percentage"`
+	SizeType      SizeType       `json:"size_type"`
+	Variation     []byte         `json:"variation"`
+	Customizable  bool           `json:"customizable"`
+	Image         pgtype.Text    `json:"image"`
+}
+
+func (q *Queries) UpdateMenuItem(ctx context.Context, arg UpdateMenuItemParams) (MenuItem, error) {
+	row := q.db.QueryRow(ctx, updateMenuItem,
+		arg.ID,
+		arg.CategoryID,
+		arg.Name,
+		arg.Description,
+		arg.Price,
+		arg.IsVegetarian,
+		arg.SpiceLevel,
+		arg.IsAvailable,
+		arg.Code,
+		arg.TaxPercentage,
+		arg.SizeType,
+		arg.Variation,
+		arg.Customizable,
+		arg.Image,
+	)
+	var i MenuItem
+	err := row.Scan(
+		&i.ID,
+		&i.CategoryID,
+		&i.Name,
+		&i.Description,
+		&i.Price,
+		&i.IsVegetarian,
+		&i.SpiceLevel,
+		&i.IsAvailable,
+		&i.BusinessID,
+		&i.IsDeleted,
+		&i.Code,
+		&i.Customizable,
+		&i.Image,
+		&i.SizeType,
+		&i.TaxPercentage,
+		&i.Variation,
 	)
 	return i, err
 }

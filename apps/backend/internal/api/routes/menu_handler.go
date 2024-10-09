@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 
@@ -17,13 +18,20 @@ type CreateCategoryRequest struct {
 }
 
 type CreateMenuItemRequest struct {
-	CategoryID   int32   `json:"category_id"`
-	Name         string  `json:"name" validate:"required,max=100"`
-	Description  *string `json:"description"`
-	Price        float32 `json:"price" validate:"required"`
-	IsVegetarian bool    `json:"is_vegetarian"`
-	SpiceLevel   *string `json:"spice_level" validate:"omitempty,oneof=Mild Medium Hot ExtraHot"`
-	IsAvailable  bool    `json:"is_available"`
+	CategoryID    int32           `json:"category_id"`
+	Name          string          `json:"name" validate:"required,max=100"`
+	Description   *string         `json:"description"`
+	Price         float32         `json:"price" validate:"required"`
+	IsVegetarian  bool            `json:"is_vegetarian"`
+	SpiceLevel    *string         `json:"spice_level" validate:"omitempty,oneof=Mild Medium Hot ExtraHot"`
+	IsAvailable   bool            `json:"is_available"`
+	BusinessID    int32           `json:"business_id" validate:"required"`
+	Code          string          `json:"code" validate:"required"`
+	TaxPercentage int             `json:"tax_percentage" validate:"required,min=0,max=100"`
+	SizeType      string          `json:"size_type" validate:"required,oneof=GRAM PIECE"`
+	Variation     json.RawMessage `json:"variation" validate:"omitempty,json"`
+	Customizable  bool            `json:"customizable"`
+	Image         string          `json:"image" validate:"omitempty,url"`
 }
 
 func float32ToPgNumeric(f float32) pgtype.Numeric {
@@ -52,18 +60,23 @@ func (s *Server) CreateMenuItem(c *fiber.Ctx) error {
 
 	// Create the menu item
 	menuItem, err := s.Queries.CreateMenuItem(c.Context(), db.CreateMenuItemParams{
-		CategoryID:   req.CategoryID,
-		Name:         req.Name,
-		Description:  pgtype.Text{String: *req.Description, Valid: req.Description != nil},
-		Price:        float32ToPgNumeric(req.Price), //req.Price,
-		IsVegetarian: req.IsVegetarian,
-		SpiceLevel: db.NullSpiceLevel{
-			SpiceLevel: db.SpiceLevel(*req.SpiceLevel),
-			Valid:      req.SpiceLevel != nil,
+		CategoryID:    req.CategoryID,
+		Name:          req.Name,
+		Description:   pgtype.Text{String: *req.Description, Valid: req.Description != nil},
+		Price:         float32ToPgNumeric(req.Price),
+		IsVegetarian:  req.IsVegetarian,
+		SpiceLevel:    db.NullSpiceLevel{SpiceLevel: db.SpiceLevel(*req.SpiceLevel), Valid: req.SpiceLevel != nil},
+		IsAvailable:   req.IsAvailable,
+		BusinessID:    int32(businessID),
+		Code:          req.Code,
+		TaxPercentage: int32(req.TaxPercentage),
+		SizeType:      db.SizeType(req.SizeType),
+		Variation:     req.Variation,
+		Customizable:  req.Customizable,
+		Image: pgtype.Text{
+			String: req.Image,
+			Valid:  req.Image != "",
 		},
-
-		IsAvailable: req.IsAvailable,
-		BusinessID:  int32(businessID),
 	})
 	if err != nil {
 		return SendErrResponse(c, err, fiber.StatusInternalServerError)
@@ -78,7 +91,7 @@ func (s *Server) GetAllMenuItemsByBusinessID(c *fiber.Ctx) error {
 		return SendErrResponse(c, errors.New("Invalid business ID"), fiber.StatusBadRequest)
 	}
 
-	menuItems, err := s.Queries.GetAllMenuItemsByBusinessID(c.Context(), int32(businessID))
+	menuItems, err := s.Queries.GetMenuItemsByBusinessID(c.Context(), int32(businessID))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch menu items"})
 	}

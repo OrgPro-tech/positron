@@ -284,11 +284,12 @@ RETURNING *;
 
 -- name: CreateMenuItem :one
 INSERT INTO menu_items (
-    category_id, name, description, price, is_vegetarian, spice_level, is_available, business_id
+    category_id, name, description, price, is_vegetarian, spice_level,
+    is_available, business_id, code, tax_percentage, size_type, variation,
+    customizable, image
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
-)
-RETURNING *;
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+) RETURNING *;
 
 
 -- name: GetAllMenuItemsByBusinessID :many
@@ -335,3 +336,21 @@ RETURNING *;
 
 -- name: DeleteCustomer :exec
 DELETE FROM customers WHERE id = $1;
+
+-- name: GetMenuItemsByBusinessID :many
+SELECT * FROM menu_items 
+WHERE business_id = $1 AND is_deleted = false
+ORDER BY category_id, name;
+
+-- name: ListMenuItems :many
+SELECT * FROM menu_items WHERE business_id = $1 AND is_deleted = false;
+
+-- name: UpdateMenuItem :one
+UPDATE menu_items
+SET category_id = $2, name = $3, description = $4, price = $5,
+    is_vegetarian = $6, spice_level = $7, is_available = $8,
+    code = $9, tax_percentage = $10, size_type = $11, variation = $12,
+    customizable = $13, image = $14
+WHERE id = $1 AND is_deleted = false
+RETURNING *;
+
