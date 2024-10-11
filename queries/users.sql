@@ -354,3 +354,34 @@ SET category_id = $2, name = $3, description = $4, price = $5,
 WHERE id = $1 AND is_deleted = false
 RETURNING *;
 
+
+
+-- name: GetOutletMenuItem :one
+SELECT * FROM outlet_menu_items
+WHERE outlet_id = $1 AND menu_item_id = $2;
+
+-- name: ListOutletMenuItems :many
+SELECT omi.*, mi.name as menu_item_name, mi.description as menu_item_description, 
+       mi.is_vegetarian, mi.spice_level, mi.code, mi.tax_percentage, 
+       mi.size_type, mi.variation, mi.customizable, mi.image
+FROM outlet_menu_items omi
+JOIN menu_items mi ON omi.menu_item_id = mi.id
+WHERE omi.outlet_id = $1;
+
+-- name: UpdateOutletMenuItem :one
+UPDATE outlet_menu_items
+SET price = $3, is_available = $4
+WHERE outlet_id = $1 AND menu_item_id = $2
+RETURNING *;
+
+
+-- name: CreateOutletMenuItem :one
+INSERT INTO outlet_menu_items (
+    menu_item_id, outlet_id, price, is_available, created_by
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+RETURNING *;
+
+
+

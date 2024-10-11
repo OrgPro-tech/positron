@@ -8,19 +8,20 @@ datasource db {
 }
 
 model User {
-  id            Int          @id @default(autoincrement())
-  name          String
-  email         String       @unique
-  password      String
-  mobile_number String       @unique
-  user_type     UserType     @default(ADMIN)
-  username      String       @unique
-  business_id   Int
-  outlet_id     Int?
-  user_outlets  UserOutlet[]
-  user_session  UserSession?
-  Business      Business     @relation(fields: [business_id], references: [id])
-  Outlet        Outlet?      @relation(fields: [outlet_id], references: [id])
+  id             Int              @id @default(autoincrement())
+  name           String
+  email          String           @unique
+  password       String
+  mobile_number  String           @unique
+  user_type      UserType         @default(ADMIN)
+  username       String           @unique
+  business_id    Int
+  outlet_id      Int?
+  user_outlets   UserOutlet[]
+  user_session   UserSession?
+  Business       Business         @relation(fields: [business_id], references: [id])
+  Outlet         Outlet?          @relation(fields: [outlet_id], references: [id])
+  OutletMenuItem OutletMenuItem[]
 
   @@map("users")
 }
@@ -147,11 +148,13 @@ enum SpiceLevel {
 model OutletMenuItem {
   id           Int      @id @default(autoincrement())
   menu_item    MenuItem @relation(fields: [menu_item_id], references: [id])
-  menu_item_id Int
+  menu_item_id Int      @unique
   outlet_id    Int
   outlet       Outlet   @relation(fields: [outlet_id], references: [id])
   price        Decimal  @db.Decimal(10, 2)
   is_available Boolean  @default(true)
+  created_by   Int
+  User         User     @relation(fields: [created_by], references: [id])
 
   @@map("outlet_menu_items")
 }
