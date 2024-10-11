@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"errors"
+	"strconv"
+
 	"github.com/OrgPro-tech/positron/backend/internal/db"
 	"github.com/OrgPro-tech/positron/backend/pkg/validator"
 	"github.com/gofiber/fiber/v2"
@@ -104,4 +107,20 @@ func (s *Server) AddOutletMenu(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(outletMenuItem)
+}
+
+func (s *Server) GetMenuByOutlet(c *fiber.Ctx) error {
+
+	outletID, err := strconv.Atoi(c.Params("outletId"))
+	if err != nil {
+		return SendErrResponse(c, errors.New("Invalid outlet ID"), fiber.StatusInternalServerError)
+
+	}
+
+	outletMenuItems, err := s.Queries.ListOutletMenuItems(c.Context(), int32(outletID))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to list outlet menu items"})
+	}
+
+	return SendSuccessResponse(c, "Menu fetch successfully", outletMenuItems, fiber.StatusCreated)
 }
