@@ -287,6 +287,7 @@ type OutletMenuItem struct {
 	OutletID    int32          `json:"outlet_id"`
 	Price       pgtype.Numeric `json:"price"`
 	IsAvailable bool           `json:"is_available"`
+	CreatedBy   int32          `json:"created_by"`
 }
 
 type PrismaMigration struct {

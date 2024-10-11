@@ -61,3 +61,47 @@ func (s *Server) CreateOutlet(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(response)
 
 }
+
+func (s *Server) AddOutletMenu(c *fiber.Ctx) error {
+	userID := c.Locals("userId").(int32)
+	if userID == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid user id",
+		})
+	}
+
+	type CreateOutletMenuItemInput struct {
+		OutletID    int32   `json:"outlet_id" validate:"required"`
+		MenuItemID  int32   `json:"menu_item_id" validate:"required"`
+		Price       float32 `json:"price" validate:"required,numeric"`
+		IsAvailable bool    `json:"is_available"`
+	}
+	var input CreateOutletMenuItemInput
+	input, validationErrors, err := validator.ValidateJSONBody[CreateOutletMenuItemInput](c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	if len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"errors": validationErrors,
+		})
+	}
+	outletMenuItem, err := s.Queries.CreateOutletMenuItem(c.Context(), db.CreateOutletMenuItemParams{
+		OutletID:    input.OutletID,
+		MenuItemID:  input.MenuItemID,
+		Price:       float32ToPgNumeric(input.Price),
+		IsAvailable: input.IsAvailable,
+		CreatedBy:   userID,
+	})
+
+	if err != nil {
+
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create outlet  menu item", "details": err.Error()})
+
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(outletMenuItem)
+}

@@ -260,6 +260,43 @@ func (q *Queries) CreateOutlet(ctx context.Context, arg CreateOutletParams) (Out
 	return i, err
 }
 
+const createOutletMenuItem = `-- name: CreateOutletMenuItem :one
+INSERT INTO outlet_menu_items (
+    menu_item_id, outlet_id, price, is_available, created_by
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+RETURNING id, menu_item_id, outlet_id, price, is_available, created_by
+`
+
+type CreateOutletMenuItemParams struct {
+	MenuItemID  int32          `json:"menu_item_id"`
+	OutletID    int32          `json:"outlet_id"`
+	Price       pgtype.Numeric `json:"price"`
+	IsAvailable bool           `json:"is_available"`
+	CreatedBy   int32          `json:"created_by"`
+}
+
+func (q *Queries) CreateOutletMenuItem(ctx context.Context, arg CreateOutletMenuItemParams) (OutletMenuItem, error) {
+	row := q.db.QueryRow(ctx, createOutletMenuItem,
+		arg.MenuItemID,
+		arg.OutletID,
+		arg.Price,
+		arg.IsAvailable,
+		arg.CreatedBy,
+	)
+	var i OutletMenuItem
+	err := row.Scan(
+		&i.ID,
+		&i.MenuItemID,
+		&i.OutletID,
+		&i.Price,
+		&i.IsAvailable,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
 const createOutletWithUserAssociation = `-- name: CreateOutletWithUserAssociation :one
 WITH new_outlet AS (
     INSERT INTO outlets (
@@ -1020,6 +1057,30 @@ func (q *Queries) GetOutletByID(ctx context.Context, id int32) (Outlet, error) {
 	return i, err
 }
 
+const getOutletMenuItem = `-- name: GetOutletMenuItem :one
+SELECT id, menu_item_id, outlet_id, price, is_available, created_by FROM outlet_menu_items
+WHERE outlet_id = $1 AND menu_item_id = $2
+`
+
+type GetOutletMenuItemParams struct {
+	OutletID   int32 `json:"outlet_id"`
+	MenuItemID int32 `json:"menu_item_id"`
+}
+
+func (q *Queries) GetOutletMenuItem(ctx context.Context, arg GetOutletMenuItemParams) (OutletMenuItem, error) {
+	row := q.db.QueryRow(ctx, getOutletMenuItem, arg.OutletID, arg.MenuItemID)
+	var i OutletMenuItem
+	err := row.Scan(
+		&i.ID,
+		&i.MenuItemID,
+		&i.OutletID,
+		&i.Price,
+		&i.IsAvailable,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
 SELECT email, password from users where email = $1
 `
@@ -1325,6 +1386,71 @@ func (q *Queries) ListMenuItems(ctx context.Context, businessID int32) ([]MenuIt
 			&i.SizeType,
 			&i.TaxPercentage,
 			&i.Variation,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOutletMenuItems = `-- name: ListOutletMenuItems :many
+SELECT omi.id, omi.menu_item_id, omi.outlet_id, omi.price, omi.is_available, omi.created_by, mi.name as menu_item_name, mi.description as menu_item_description, 
+       mi.is_vegetarian, mi.spice_level, mi.code, mi.tax_percentage, 
+       mi.size_type, mi.variation, mi.customizable, mi.image
+FROM outlet_menu_items omi
+JOIN menu_items mi ON omi.menu_item_id = mi.id
+WHERE omi.outlet_id = $1
+`
+
+type ListOutletMenuItemsRow struct {
+	ID                  int32          `json:"id"`
+	MenuItemID          int32          `json:"menu_item_id"`
+	OutletID            int32          `json:"outlet_id"`
+	Price               pgtype.Numeric `json:"price"`
+	IsAvailable         bool           `json:"is_available"`
+	CreatedBy           int32          `json:"created_by"`
+	MenuItemName        string         `json:"menu_item_name"`
+	MenuItemDescription pgtype.Text    `json:"menu_item_description"`
+	IsVegetarian        bool           `json:"is_vegetarian"`
+	SpiceLevel          NullSpiceLevel `json:"spice_level"`
+	Code                string         `json:"code"`
+	TaxPercentage       int32          `json:"tax_percentage"`
+	SizeType            SizeType       `json:"size_type"`
+	Variation           []byte         `json:"variation"`
+	Customizable        bool           `json:"customizable"`
+	Image               pgtype.Text    `json:"image"`
+}
+
+func (q *Queries) ListOutletMenuItems(ctx context.Context, outletID int32) ([]ListOutletMenuItemsRow, error) {
+	rows, err := q.db.Query(ctx, listOutletMenuItems, outletID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOutletMenuItemsRow
+	for rows.Next() {
+		var i ListOutletMenuItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.MenuItemID,
+			&i.OutletID,
+			&i.Price,
+			&i.IsAvailable,
+			&i.CreatedBy,
+			&i.MenuItemName,
+			&i.MenuItemDescription,
+			&i.IsVegetarian,
+			&i.SpiceLevel,
+			&i.Code,
+			&i.TaxPercentage,
+			&i.SizeType,
+			&i.Variation,
+			&i.Customizable,
+			&i.Image,
 		); err != nil {
 			return nil, err
 		}
@@ -1661,6 +1787,39 @@ func (q *Queries) UpdateOutlet(ctx context.Context, arg UpdateOutletParams) (Out
 		&i.OutletState,
 		&i.OutletCountry,
 		&i.BusinessID,
+	)
+	return i, err
+}
+
+const updateOutletMenuItem = `-- name: UpdateOutletMenuItem :one
+UPDATE outlet_menu_items
+SET price = $3, is_available = $4
+WHERE outlet_id = $1 AND menu_item_id = $2
+RETURNING id, menu_item_id, outlet_id, price, is_available, created_by
+`
+
+type UpdateOutletMenuItemParams struct {
+	OutletID    int32          `json:"outlet_id"`
+	MenuItemID  int32          `json:"menu_item_id"`
+	Price       pgtype.Numeric `json:"price"`
+	IsAvailable bool           `json:"is_available"`
+}
+
+func (q *Queries) UpdateOutletMenuItem(ctx context.Context, arg UpdateOutletMenuItemParams) (OutletMenuItem, error) {
+	row := q.db.QueryRow(ctx, updateOutletMenuItem,
+		arg.OutletID,
+		arg.MenuItemID,
+		arg.Price,
+		arg.IsAvailable,
+	)
+	var i OutletMenuItem
+	err := row.Scan(
+		&i.ID,
+		&i.MenuItemID,
+		&i.OutletID,
+		&i.Price,
+		&i.IsAvailable,
+		&i.CreatedBy,
 	)
 	return i, err
 }
