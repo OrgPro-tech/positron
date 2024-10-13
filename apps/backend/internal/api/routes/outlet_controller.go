@@ -9,17 +9,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type outletData struct {
+	OutletName    string `json:"outlet_name" validate:"required"`
+	OutletAddress string `json:"outlet_address" validate:"required"`
+	OutletPin     int32  `json:"outlet_pin" validate:"required"`
+	OutletCity    string `json:"outlet_city" validate:"required"`
+	OutletState   string `json:"outlet_state" validate:"required"`
+	OutletCountry string `json:"outlet_country" validate:"required"`
+	BusinessID    int32  `json:"business_id" validate:"required"`
+}
+
 func (s *Server) CreateOutlet(c *fiber.Ctx) error {
 
-	type outletData struct {
-		OutletName    string `json:"outlet_name" validate:"required"`
-		OutletAddress string `json:"outlet_address" validate:"required"`
-		OutletPin     int32  `json:"outlet_pin" validate:"required"`
-		OutletCity    string `json:"outlet_city" validate:"required"`
-		OutletState   string `json:"outlet_state" validate:"required"`
-		OutletCountry string `json:"outlet_country" validate:"required"`
-		BusinessID    int32  `json:"business_id" validate:"required"`
-	}
 	req, validationErrors, err := validator.ValidateJSONBody[outletData](c)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -65,19 +66,19 @@ func (s *Server) CreateOutlet(c *fiber.Ctx) error {
 
 }
 
+type CreateOutletMenuItemInput struct {
+	OutletID    int32   `json:"outlet_id" validate:"required"`
+	MenuItemID  int32   `json:"menu_item_id" validate:"required"`
+	Price       float32 `json:"price" validate:"required,numeric"`
+	IsAvailable bool    `json:"is_available"`
+}
+
 func (s *Server) AddOutletMenu(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(int32)
 	if userID == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user id",
 		})
-	}
-
-	type CreateOutletMenuItemInput struct {
-		OutletID    int32   `json:"outlet_id" validate:"required"`
-		MenuItemID  int32   `json:"menu_item_id" validate:"required"`
-		Price       float32 `json:"price" validate:"required,numeric"`
-		IsAvailable bool    `json:"is_available"`
 	}
 	var input CreateOutletMenuItemInput
 	input, validationErrors, err := validator.ValidateJSONBody[CreateOutletMenuItemInput](c)

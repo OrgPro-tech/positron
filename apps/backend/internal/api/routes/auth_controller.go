@@ -113,36 +113,37 @@ func (s *Server) Login(c *fiber.Ctx) error {
 	})
 }
 
+type CreateUserWithBusinessParams struct {
+	User struct {
+		Username     string `json:"username" validate:"required"`
+		Password     string `json:"password" validate:"required"`
+		Email        string `json:"email" validate:"required"`
+		Name         string `json:"name" validate:"required"`
+		MobileNumber string `json:"mobile_number" validate:"required"`
+		UserType     string `json:"user_type" validate:"required"`
+	} `json:"user" validate:"required"`
+	Business struct {
+		ContactPersonName         string `json:"contact_person_name" validate:"required"`
+		ContactPersonEmail        string `json:"contact_person_email" validate:"required"`
+		ContactPersonMobileNumber string `json:"contact_person_mobile_number" validate:"required"`
+		CompanyName               string `json:"company_name" validate:"required"`
+		Address                   string `json:"address" validate:"required"`
+		Pin                       int32  `json:"pin" validate:"required"`
+		City                      string `json:"city" validate:"required"`
+		State                     string `json:"state" validate:"required"`
+		Country                   string `json:"country" validate:"required"`
+		BusinessType              string `json:"business_type" validate:"required"`
+		Gst                       string `json:"gst" validate:"required"`
+		Pan                       string `json:"pan" validate:"required"`
+		BankAccountNumber         string `json:"bank_account_number" validate:"required"`
+		BankName                  string `json:"bank_name" validate:"required"`
+		IfscCode                  string `json:"ifsc_code" validate:"required"`
+		AccountType               string `json:"account_type" validate:"required"`
+		AccountHolderName         string `json:"account_holder_name" validate:"required"`
+	} `json:"Business" validate:"required"`
+}
+
 func (s *Server) CreateUser(c *fiber.Ctx) error {
-	type CreateUserWithBusinessParams struct {
-		User struct {
-			Username     string `json:"username" validate:"required"`
-			Password     string `json:"password" validate:"required"`
-			Email        string `json:"email" validate:"required"`
-			Name         string `json:"name" validate:"required"`
-			MobileNumber string `json:"mobile_number" validate:"required"`
-			UserType     string `json:"user_type" validate:"required"`
-		} `json:"user" validate:"required"`
-		Business struct {
-			ContactPersonName         string `json:"contact_person_name" validate:"required"`
-			ContactPersonEmail        string `json:"contact_person_email" validate:"required"`
-			ContactPersonMobileNumber string `json:"contact_person_mobile_number" validate:"required"`
-			CompanyName               string `json:"company_name" validate:"required"`
-			Address                   string `json:"address" validate:"required"`
-			Pin                       int32  `json:"pin" validate:"required"`
-			City                      string `json:"city" validate:"required"`
-			State                     string `json:"state" validate:"required"`
-			Country                   string `json:"country" validate:"required"`
-			BusinessType              string `json:"business_type" validate:"required"`
-			Gst                       string `json:"gst" validate:"required"`
-			Pan                       string `json:"pan" validate:"required"`
-			BankAccountNumber         string `json:"bank_account_number" validate:"required"`
-			BankName                  string `json:"bank_name" validate:"required"`
-			IfscCode                  string `json:"ifsc_code" validate:"required"`
-			AccountType               string `json:"account_type" validate:"required"`
-			AccountHolderName         string `json:"account_holder_name" validate:"required"`
-		} `json:"Business" validate:"required"`
-	}
 
 	reqBody, validationErrors, err := validator.ValidateJSONBody[CreateUserWithBusinessParams](c)
 	if err != nil {
