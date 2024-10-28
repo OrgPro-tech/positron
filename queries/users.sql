@@ -383,5 +383,24 @@ INSERT INTO outlet_menu_items (
 )
 RETURNING *;
 
+-- name: GetCustomerByPhoneNumber :one
+SELECT id, phone_number, name, email, address, whatsapp
+FROM customers
+WHERE phone_number = $1;
 
+-- name: CreateOrder :one
+INSERT INTO orders (
+  customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+) RETURNING id, customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount, created_at, updated_at;
 
+-- name: CreateOrderItem :exec
+INSERT INTO order_items (
+  item_code, item_description, variation, quantity, unit_price, net_price, tax_precentage, gst_amount, total_amount, order_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+);
+
+-- name: GetMenuItemByCode :one
+SELECT id, code, name, price, tax_percentage, is_available FROM menu_items WHERE code = $1;

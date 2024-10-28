@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"database/sql"
 	"errors"
 	"strconv"
 
@@ -124,4 +125,59 @@ func (s *Server) GetMenuByOutlet(c *fiber.Ctx) error {
 	}
 
 	return SendSuccessResponse(c, "Menu fetch successfully", outletMenuItems, fiber.StatusCreated)
+}
+
+func (s *Server) UpdateMenuByOutlet(c *fiber.Ctx) error {
+	type UpdateOutletMenuItemInput struct {
+		Price       *float32 `json:"price"`
+		IsAvailable *bool    `json:"is_available"`
+	}
+	outletID, err := strconv.Atoi(c.Params("outletId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid outlet ID"})
+	}
+
+	menuItemID, err := strconv.Atoi(c.Params("menuId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid menu item ID"})
+	}
+
+	var input UpdateOutletMenuItemInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	// Fetch the current outlet menu item
+	currentItem, err := s.Queries.GetOutletMenuItem(c.Context(), db.GetOutletMenuItemParams{
+		OutletID:   int32(outletID),
+		MenuItemID: int32(menuItemID),
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Outlet menu item not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch outlet menu item"})
+	}
+
+	// Update only the fields that are provided
+	updateParams := db.UpdateOutletMenuItemParams{
+		OutletID:    int32(outletID),
+		MenuItemID:  int32(menuItemID),
+		Price:       currentItem.Price,
+		IsAvailable: currentItem.IsAvailable,
+	}
+
+	if input.Price != nil {
+		updateParams.Price = float32ToPgNumeric(*input.Price) //*input.Price
+	}
+	if input.IsAvailable != nil {
+		updateParams.IsAvailable = *input.IsAvailable
+	}
+
+	updatedItem, err := s.Queries.UpdateOutletMenuItem(c.Context(), updateParams)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update outlet menu item"})
+	}
+
+	return SendSuccessResponse(c, "Menu fetch successfully", updatedItem, fiber.StatusCreated)
 }
