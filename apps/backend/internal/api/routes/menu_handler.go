@@ -3,6 +3,7 @@ package routes
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"math/big"
 
 	"github.com/OrgPro-tech/positron/backend/internal/db"
@@ -25,7 +26,7 @@ type CreateMenuItemRequest struct {
 	IsVegetarian  bool            `json:"is_vegetarian"`
 	SpiceLevel    *string         `json:"spice_level" validate:"omitempty,oneof=Mild Medium Hot ExtraHot"`
 	IsAvailable   bool            `json:"is_available"`
-	BusinessID    int32           `json:"business_id" validate:"required"`
+	BusinessID    int32           `json:"business_id"`
 	Code          string          `json:"code" validate:"required"`
 	TaxPercentage int             `json:"tax_percentage" validate:"required,min=0,max=100"`
 	SizeType      string          `json:"size_type" validate:"required,oneof=GRAM PIECE"`
@@ -40,6 +41,42 @@ func float32ToPgNumeric(f float32) pgtype.Numeric {
 		Exp:   -2,                                    // Set the exponent to -2 to account for the multiplication
 		Valid: true,
 	}
+}
+
+func pgNumericToFloat64(num pgtype.Numeric) float64 {
+	if !num.Valid {
+		return 0.0 // Handle invalid case
+	}
+
+	if num.NaN {
+		return math.NaN()
+	}
+
+	// Convert num.Int to big.Float with high precision
+	bf := new(big.Float).SetPrec(200).SetInt(num.Int)
+
+	// Apply exponent if necessary
+	if num.Exp != 0 {
+		absExp := int64(num.Exp)
+		if num.Exp < 0 {
+			absExp = -absExp
+		}
+
+		// Compute 10^absExp using big.Int
+		pow := new(big.Int).Exp(big.NewInt(10), big.NewInt(absExp), nil)
+		powFloat := new(big.Float).SetPrec(200).SetInt(pow)
+
+		// Multiply or divide based on the sign of the exponent
+		if num.Exp > 0 {
+			bf.Mul(bf, powFloat)
+		} else {
+			bf.Quo(bf, powFloat)
+		}
+	}
+
+	// Convert the result to float64
+	f, _ := bf.Float64()
+	return f
 }
 func (s *Server) CreateMenuItem(c *fiber.Ctx) error {
 	businessID := c.Locals("business_id").(int32)
@@ -57,7 +94,7 @@ func (s *Server) CreateMenuItem(c *fiber.Ctx) error {
 			"errors": validationErrors,
 		})
 	}
-
+	req.BusinessID = businessID
 	// Create the menu item
 	menuItem, err := s.Queries.CreateMenuItem(c.Context(), db.CreateMenuItemParams{
 		CategoryID:    req.CategoryID,

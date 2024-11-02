@@ -361,11 +361,28 @@ SELECT * FROM outlet_menu_items
 WHERE outlet_id = $1 AND menu_item_id = $2;
 
 -- name: ListOutletMenuItems :many
-SELECT omi.*, mi.name as menu_item_name, mi.description as menu_item_description, 
-       mi.is_vegetarian, mi.spice_level, mi.code, mi.tax_percentage, 
-       mi.size_type, mi.variation, mi.customizable, mi.image
+SELECT 
+    omi.id, 
+    omi.menu_item_id, 
+    omi.outlet_id, 
+    omi.price, 
+    omi.is_available, 
+    omi.created_by, 
+    mi.name as menu_item_name, 
+    mi.description as menu_item_description,
+    mi.is_vegetarian, 
+    mi.spice_level, 
+    mi.code, 
+    mi.tax_percentage,
+    mi.size_type, 
+    mi.variation, 
+    mi.customizable, 
+    mi.image, 
+    mi.category_id,
+    c.name as category_name
 FROM outlet_menu_items omi
 JOIN menu_items mi ON omi.menu_item_id = mi.id
+JOIN categories c ON mi.category_id = c.id
 WHERE omi.outlet_id = $1;
 
 -- name: UpdateOutletMenuItem :one
@@ -383,5 +400,24 @@ INSERT INTO outlet_menu_items (
 )
 RETURNING *;
 
+-- name: GetCustomerByPhoneNumber :one
+SELECT id, phone_number, name, email, address, whatsapp
+FROM customers
+WHERE phone_number = $1;
 
+-- name: CreateOrder :one
+INSERT INTO orders (
+  customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+) RETURNING id, customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount, created_at, updated_at;
 
+-- name: CreateOrderItem :exec
+INSERT INTO order_items (
+  item_code, item_description, variation, quantity, unit_price, net_price, tax_precentage, gst_amount, total_amount, order_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+);
+
+-- name: GetMenuItemByCode :one
+SELECT id, code, name, price, tax_percentage, is_available FROM menu_items WHERE code = $1;

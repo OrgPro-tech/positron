@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"database/sql"
 	"errors"
 	"strconv"
 
@@ -9,17 +10,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type outletData struct {
+	OutletName    string `json:"outlet_name" validate:"required"`
+	OutletAddress string `json:"outlet_address" validate:"required"`
+	OutletPin     int32  `json:"outlet_pin" validate:"required"`
+	OutletCity    string `json:"outlet_city" validate:"required"`
+	OutletState   string `json:"outlet_state" validate:"required"`
+	OutletCountry string `json:"outlet_country" validate:"required"`
+	BusinessID    int32  `json:"business_id" validate:"required"`
+}
+
 func (s *Server) CreateOutlet(c *fiber.Ctx) error {
 
-	type outletData struct {
-		OutletName    string `json:"outlet_name" validate:"required"`
-		OutletAddress string `json:"outlet_address" validate:"required"`
-		OutletPin     int32  `json:"outlet_pin" validate:"required"`
-		OutletCity    string `json:"outlet_city" validate:"required"`
-		OutletState   string `json:"outlet_state" validate:"required"`
-		OutletCountry string `json:"outlet_country" validate:"required"`
-		BusinessID    int32  `json:"business_id" validate:"required"`
-	}
 	req, validationErrors, err := validator.ValidateJSONBody[outletData](c)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -65,19 +67,19 @@ func (s *Server) CreateOutlet(c *fiber.Ctx) error {
 
 }
 
+type CreateOutletMenuItemInput struct {
+	OutletID    int32   `json:"outlet_id" validate:"required"`
+	MenuItemID  int32   `json:"menu_item_id" validate:"required"`
+	Price       float32 `json:"price" validate:"required,numeric"`
+	IsAvailable bool    `json:"is_available"`
+}
+
 func (s *Server) AddOutletMenu(c *fiber.Ctx) error {
 	userID := c.Locals("userId").(int32)
 	if userID == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid user id",
 		})
-	}
-
-	type CreateOutletMenuItemInput struct {
-		OutletID    int32   `json:"outlet_id" validate:"required"`
-		MenuItemID  int32   `json:"menu_item_id" validate:"required"`
-		Price       float32 `json:"price" validate:"required,numeric"`
-		IsAvailable bool    `json:"is_available"`
 	}
 	var input CreateOutletMenuItemInput
 	input, validationErrors, err := validator.ValidateJSONBody[CreateOutletMenuItemInput](c)
@@ -123,4 +125,59 @@ func (s *Server) GetMenuByOutlet(c *fiber.Ctx) error {
 	}
 
 	return SendSuccessResponse(c, "Menu fetch successfully", outletMenuItems, fiber.StatusCreated)
+}
+
+func (s *Server) UpdateMenuByOutlet(c *fiber.Ctx) error {
+	type UpdateOutletMenuItemInput struct {
+		Price       *float32 `json:"price"`
+		IsAvailable *bool    `json:"is_available"`
+	}
+	outletID, err := strconv.Atoi(c.Params("outletId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid outlet ID"})
+	}
+
+	menuItemID, err := strconv.Atoi(c.Params("menuId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid menu item ID"})
+	}
+
+	var input UpdateOutletMenuItemInput
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+
+	// Fetch the current outlet menu item
+	currentItem, err := s.Queries.GetOutletMenuItem(c.Context(), db.GetOutletMenuItemParams{
+		OutletID:   int32(outletID),
+		MenuItemID: int32(menuItemID),
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Outlet menu item not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch outlet menu item"})
+	}
+
+	// Update only the fields that are provided
+	updateParams := db.UpdateOutletMenuItemParams{
+		OutletID:    int32(outletID),
+		MenuItemID:  int32(menuItemID),
+		Price:       currentItem.Price,
+		IsAvailable: currentItem.IsAvailable,
+	}
+
+	if input.Price != nil {
+		updateParams.Price = float32ToPgNumeric(*input.Price) //*input.Price
+	}
+	if input.IsAvailable != nil {
+		updateParams.IsAvailable = *input.IsAvailable
+	}
+
+	updatedItem, err := s.Queries.UpdateOutletMenuItem(c.Context(), updateParams)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update outlet menu item"})
+	}
+
+	return SendSuccessResponse(c, "Menu fetch successfully", updatedItem, fiber.StatusCreated)
 }

@@ -216,6 +216,112 @@ func (q *Queries) CreateMenuItem(ctx context.Context, arg CreateMenuItemParams) 
 	return i, err
 }
 
+const createOrder = `-- name: CreateOrder :one
+INSERT INTO orders (
+  customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+) RETURNING id, customer_id, phone_number, name, email, address, order_id, status, gst_amount, total_amount, net_amount, created_at, updated_at
+`
+
+type CreateOrderParams struct {
+	CustomerID  int32          `json:"customer_id"`
+	PhoneNumber string         `json:"phone_number"`
+	Name        string         `json:"name"`
+	Email       pgtype.Text    `json:"email"`
+	Address     pgtype.Text    `json:"address"`
+	OrderID     string         `json:"order_id"`
+	Status      OrderStatus    `json:"status"`
+	GstAmount   pgtype.Numeric `json:"gst_amount"`
+	TotalAmount pgtype.Numeric `json:"total_amount"`
+	NetAmount   pgtype.Numeric `json:"net_amount"`
+}
+
+type CreateOrderRow struct {
+	ID          int32            `json:"id"`
+	CustomerID  int32            `json:"customer_id"`
+	PhoneNumber string           `json:"phone_number"`
+	Name        string           `json:"name"`
+	Email       pgtype.Text      `json:"email"`
+	Address     pgtype.Text      `json:"address"`
+	OrderID     string           `json:"order_id"`
+	Status      OrderStatus      `json:"status"`
+	GstAmount   pgtype.Numeric   `json:"gst_amount"`
+	TotalAmount pgtype.Numeric   `json:"total_amount"`
+	NetAmount   pgtype.Numeric   `json:"net_amount"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
+func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (CreateOrderRow, error) {
+	row := q.db.QueryRow(ctx, createOrder,
+		arg.CustomerID,
+		arg.PhoneNumber,
+		arg.Name,
+		arg.Email,
+		arg.Address,
+		arg.OrderID,
+		arg.Status,
+		arg.GstAmount,
+		arg.TotalAmount,
+		arg.NetAmount,
+	)
+	var i CreateOrderRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.PhoneNumber,
+		&i.Name,
+		&i.Email,
+		&i.Address,
+		&i.OrderID,
+		&i.Status,
+		&i.GstAmount,
+		&i.TotalAmount,
+		&i.NetAmount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createOrderItem = `-- name: CreateOrderItem :exec
+INSERT INTO order_items (
+  item_code, item_description, variation, quantity, unit_price, net_price, tax_precentage, gst_amount, total_amount, order_id
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+)
+`
+
+type CreateOrderItemParams struct {
+	ItemCode        string         `json:"item_code"`
+	ItemDescription string         `json:"item_description"`
+	Variation       []byte         `json:"variation"`
+	Quantity        int32          `json:"quantity"`
+	UnitPrice       pgtype.Numeric `json:"unit_price"`
+	NetPrice        pgtype.Numeric `json:"net_price"`
+	TaxPrecentage   int32          `json:"tax_precentage"`
+	GstAmount       pgtype.Numeric `json:"gst_amount"`
+	TotalAmount     pgtype.Numeric `json:"total_amount"`
+	OrderID         int32          `json:"order_id"`
+}
+
+func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) error {
+	_, err := q.db.Exec(ctx, createOrderItem,
+		arg.ItemCode,
+		arg.ItemDescription,
+		arg.Variation,
+		arg.Quantity,
+		arg.UnitPrice,
+		arg.NetPrice,
+		arg.TaxPrecentage,
+		arg.GstAmount,
+		arg.TotalAmount,
+		arg.OrderID,
+	)
+	return err
+}
+
 const createOutlet = `-- name: CreateOutlet :one
 INSERT INTO outlets (
   outlet_name, outlet_address, outlet_pin, outlet_city, outlet_state,
@@ -906,6 +1012,35 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id int32) (Customer, erro
 	return i, err
 }
 
+const getCustomerByPhoneNumber = `-- name: GetCustomerByPhoneNumber :one
+SELECT id, phone_number, name, email, address, whatsapp
+FROM customers
+WHERE phone_number = $1
+`
+
+type GetCustomerByPhoneNumberRow struct {
+	ID          int32       `json:"id"`
+	PhoneNumber string      `json:"phone_number"`
+	Name        string      `json:"name"`
+	Email       pgtype.Text `json:"email"`
+	Address     pgtype.Text `json:"address"`
+	Whatsapp    pgtype.Bool `json:"whatsapp"`
+}
+
+func (q *Queries) GetCustomerByPhoneNumber(ctx context.Context, phoneNumber string) (GetCustomerByPhoneNumberRow, error) {
+	row := q.db.QueryRow(ctx, getCustomerByPhoneNumber, phoneNumber)
+	var i GetCustomerByPhoneNumberRow
+	err := row.Scan(
+		&i.ID,
+		&i.PhoneNumber,
+		&i.Name,
+		&i.Email,
+		&i.Address,
+		&i.Whatsapp,
+	)
+	return i, err
+}
+
 const getCustomersByBusinessID = `-- name: GetCustomersByBusinessID :many
 SELECT id, phone_number, name, whatsapp, email, address, outlet_id, business_id FROM customers WHERE business_id = $1
 `
@@ -989,6 +1124,33 @@ func (q *Queries) GetLatestUserSession(ctx context.Context, userID int32) (UserS
 		&i.RefreshToken,
 		&i.ExpireAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getMenuItemByCode = `-- name: GetMenuItemByCode :one
+SELECT id, code, name, price, tax_percentage, is_available FROM menu_items WHERE code = $1
+`
+
+type GetMenuItemByCodeRow struct {
+	ID            int32          `json:"id"`
+	Code          string         `json:"code"`
+	Name          string         `json:"name"`
+	Price         pgtype.Numeric `json:"price"`
+	TaxPercentage int32          `json:"tax_percentage"`
+	IsAvailable   bool           `json:"is_available"`
+}
+
+func (q *Queries) GetMenuItemByCode(ctx context.Context, code string) (GetMenuItemByCodeRow, error) {
+	row := q.db.QueryRow(ctx, getMenuItemByCode, code)
+	var i GetMenuItemByCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Name,
+		&i.Price,
+		&i.TaxPercentage,
+		&i.IsAvailable,
 	)
 	return i, err
 }
@@ -1398,11 +1560,28 @@ func (q *Queries) ListMenuItems(ctx context.Context, businessID int32) ([]MenuIt
 }
 
 const listOutletMenuItems = `-- name: ListOutletMenuItems :many
-SELECT omi.id, omi.menu_item_id, omi.outlet_id, omi.price, omi.is_available, omi.created_by, mi.name as menu_item_name, mi.description as menu_item_description, 
-       mi.is_vegetarian, mi.spice_level, mi.code, mi.tax_percentage, 
-       mi.size_type, mi.variation, mi.customizable, mi.image
+SELECT 
+    omi.id, 
+    omi.menu_item_id, 
+    omi.outlet_id, 
+    omi.price, 
+    omi.is_available, 
+    omi.created_by, 
+    mi.name as menu_item_name, 
+    mi.description as menu_item_description,
+    mi.is_vegetarian, 
+    mi.spice_level, 
+    mi.code, 
+    mi.tax_percentage,
+    mi.size_type, 
+    mi.variation, 
+    mi.customizable, 
+    mi.image, 
+    mi.category_id,
+    c.name as category_name
 FROM outlet_menu_items omi
 JOIN menu_items mi ON omi.menu_item_id = mi.id
+JOIN categories c ON mi.category_id = c.id
 WHERE omi.outlet_id = $1
 `
 
@@ -1423,6 +1602,8 @@ type ListOutletMenuItemsRow struct {
 	Variation           []byte         `json:"variation"`
 	Customizable        bool           `json:"customizable"`
 	Image               pgtype.Text    `json:"image"`
+	CategoryID          int32          `json:"category_id"`
+	CategoryName        string         `json:"category_name"`
 }
 
 func (q *Queries) ListOutletMenuItems(ctx context.Context, outletID int32) ([]ListOutletMenuItemsRow, error) {
@@ -1451,6 +1632,8 @@ func (q *Queries) ListOutletMenuItems(ctx context.Context, outletID int32) ([]Li
 			&i.Variation,
 			&i.Customizable,
 			&i.Image,
+			&i.CategoryID,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}

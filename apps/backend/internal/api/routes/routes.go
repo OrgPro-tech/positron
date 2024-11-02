@@ -3,11 +3,13 @@ package routes
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +19,8 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+
+	"math/big"
 
 	"github.com/OrgPro-tech/positron/backend/internal/config"
 	"github.com/OrgPro-tech/positron/backend/internal/db"
@@ -66,7 +70,176 @@ func (s *Server) InitializeRoutes() {
 	v1.Get("/get-customer", s.GetCustomersByBusinessId)
 	v1.Post("/outlet/create-menu", s.AddOutletMenu)
 	v1.Get("/outlet/:outletId/get-menu", s.GetMenuByOutlet)
+	v1.Put("/outlet/:outletId/update-menu/:menuId", s.UpdateMenuByOutlet)
+	v1.Post("/outlet/:outletId/create-order", func(c *fiber.Ctx) error {
 
+		businessID := c.Locals("business_id").(int32)
+		outletID, err := strconv.Atoi(c.Params("outletId"))
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid outlet ID"})
+		}
+		type OrderRequest struct {
+			CustomerID  *int    `json:"customer_id,omitempty"`
+			PhoneNumber string  `json:"phone_number,omitempty"`
+			Name        string  `json:"name"`
+			Email       *string `json:"email,omitempty"`
+			Address     *string `json:"address,omitempty"`
+			Items       []struct {
+				ItemCode  string `json:"item_code"`
+				Quantity  int    `json:"quantity"`
+				Variation string `json:"variation,omitempty"`
+			} `json:"items"`
+		}
+
+		var orderReq OrderRequest
+		if err := c.BodyParser(&orderReq); err != nil {
+			return c.Status(400).SendString("Invalid request")
+		}
+
+		// Initialize Context
+		ctx := context.Background()
+
+		var customer db.Customer
+
+		// Check if customer exists by ID or Phone Number
+		if orderReq.CustomerID != nil {
+			cust, err := s.Queries.GetCustomerByID(ctx, int32(*orderReq.CustomerID))
+			if err == nil {
+				customer = cust
+			}
+		}
+
+		if customer.ID == 0 && orderReq.PhoneNumber != "" {
+			cust, err := s.Queries.GetCustomerByPhoneNumber(ctx, orderReq.PhoneNumber)
+			if err == nil {
+				customer = db.Customer{
+					ID:    cust.ID,
+					Email: cust.Email,
+					PhoneNumber: nullStringToString(pgtype.Text{
+						String: cust.PhoneNumber,
+						Valid:  cust.PhoneNumber != "",
+					}),
+					Name:     cust.Name,
+					Whatsapp: cust.Whatsapp,
+					Address:  cust.Address,
+					OutletID: int32(outletID),
+				}
+			}
+		}
+
+		// Create new customer if not found
+		if customer.ID == 0 {
+			if orderReq.PhoneNumber == "" {
+				return c.Status(400).SendString("Phone number is required to create a new customer")
+			}
+
+			newCustomer, err := s.Queries.CreateCustomer(c.Context(), db.CreateCustomerParams{
+				PhoneNumber: orderReq.PhoneNumber,
+				Name:        orderReq.Name,
+				Whatsapp: pgtype.Bool{
+					Bool:  true,
+					Valid: true,
+				},
+				// WhatsApp:    sql.NullBool{Bool: *req.WhatsApp, Valid: req.WhatsApp != nil},
+				Email: pgtype.Text{
+					String: *orderReq.Email,
+					Valid:  orderReq.Email != nil,
+				}, //sql.NullString{String: *req.Email, Valid: req.Email != nil},
+				Address: pgtype.Text{
+					String: *orderReq.Address,
+					Valid:  orderReq.Address != nil,
+				}, //sql.NullString{String: *orderReq.Address, Valid: orderReq.Address != nil},
+				OutletID:   int32(outletID),
+				BusinessID: businessID,
+			})
+			if err != nil {
+				return SendErrResponse(c, err, fiber.StatusInternalServerError)
+			}
+			customer = newCustomer
+		}
+
+		// Validate and Calculate Order Items
+		var netAmount, gstAmount, totalAmount float64
+		var orderItems []db.CreateOrderItemParams
+
+		for _, itemReq := range orderReq.Items {
+			menuItem, err := s.Queries.GetMenuItemByCode(ctx, itemReq.ItemCode)
+			if err != nil {
+				return c.Status(404).SendString(fmt.Sprintf("Menu item %s not found", itemReq.ItemCode))
+			}
+
+			if !menuItem.IsAvailable {
+				return c.Status(400).SendString(fmt.Sprintf("Menu item %s is not available", itemReq.ItemCode))
+			}
+
+			unitPrice := (menuItem.Price)
+			quantity := float64(itemReq.Quantity)
+			itemNetAmount := (func() float64 {
+				return pgNumericToFloat64(unitPrice)
+				// pgNumericToFloat32(unitPrice)
+
+			}()) * quantity
+			itemGst := (itemNetAmount * float64(menuItem.TaxPercentage)) / 100
+			itemTotalAmount := itemNetAmount + itemGst
+			variation, err := json.Marshal(itemReq.Variation)
+			// Create Order Item Input
+			if err != nil {
+				return c.Status(400).SendString(fmt.Sprintf("Variation format issue", err))
+			}
+			orderItem := db.CreateOrderItemParams{
+				ItemCode:        menuItem.Code,
+				ItemDescription: menuItem.Name,
+				Variation:       variation, //.Encode(itemReq.Variation),
+				Quantity:        int32(itemReq.Quantity),
+				UnitPrice:       unitPrice,
+				NetPrice:        pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(itemNetAmount) * 100)), Exp: -2, Valid: true},
+				TaxPrecentage:   int32(menuItem.TaxPercentage),
+				GstAmount:       pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(itemGst) * 100)), Exp: -2, Valid: true},
+				TotalAmount:     pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(itemTotalAmount) * 100)), Exp: -2, Valid: true},
+				OrderID:         0, // Placeholder, will be updated after creating order
+			}
+
+			orderItems = append(orderItems, orderItem)
+			netAmount += itemNetAmount
+			gstAmount += itemGst
+			totalAmount += itemTotalAmount
+		}
+
+		// Create Order
+		orderID := "ORD" + strconv.FormatInt(time.Now().Unix(), 10)
+		order, err := s.Queries.CreateOrder(ctx, db.CreateOrderParams{
+			CustomerID:  customer.ID,
+			PhoneNumber: customer.PhoneNumber,
+			Name:        customer.Name,
+			Email:       customer.Email,
+			Address:     customer.Address,
+			OrderID:     orderID,
+			Status:      "NEW",
+			GstAmount:   pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(gstAmount) * 100)), Exp: -2, Valid: true},
+			TotalAmount: pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(totalAmount) * 100)), Exp: -2, Valid: true},
+			NetAmount:   pgtype.Numeric{Int: new(big.Int).SetInt64(int64(float32(netAmount) * 100)), Exp: -2, Valid: true},
+		})
+
+		if err != nil {
+			return c.Status(500).SendString("Failed to create order")
+		}
+
+		// Update Order ID for Order Items and Create Them
+		for i := range orderItems {
+			orderItems[i].OrderID = order.ID
+			err = s.Queries.CreateOrderItem(ctx, orderItems[i])
+			if err != nil {
+				return c.Status(500).SendString("Failed to create order items")
+			}
+		}
+		return SendSuccessResponse(c, "Order created successfully", map[string]interface{}{
+			"orderID": order.ID,
+		}, fiber.StatusCreated)
+		// return c.Status(fiber.StatusCreated).SendString("Order created successfully")
+
+	})
+
+	// v1.Post()
 }
 func verifyRefreshToken(tokenString string) (*jwt.StandardClaims, error) {
 	claims := &jwt.StandardClaims{}
