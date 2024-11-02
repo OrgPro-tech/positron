@@ -1560,11 +1560,28 @@ func (q *Queries) ListMenuItems(ctx context.Context, businessID int32) ([]MenuIt
 }
 
 const listOutletMenuItems = `-- name: ListOutletMenuItems :many
-SELECT omi.id, omi.menu_item_id, omi.outlet_id, omi.price, omi.is_available, omi.created_by, mi.name as menu_item_name, mi.description as menu_item_description, 
-       mi.is_vegetarian, mi.spice_level, mi.code, mi.tax_percentage, 
-       mi.size_type, mi.variation, mi.customizable, mi.image
+SELECT 
+    omi.id, 
+    omi.menu_item_id, 
+    omi.outlet_id, 
+    omi.price, 
+    omi.is_available, 
+    omi.created_by, 
+    mi.name as menu_item_name, 
+    mi.description as menu_item_description,
+    mi.is_vegetarian, 
+    mi.spice_level, 
+    mi.code, 
+    mi.tax_percentage,
+    mi.size_type, 
+    mi.variation, 
+    mi.customizable, 
+    mi.image, 
+    mi.category_id,
+    c.name as category_name
 FROM outlet_menu_items omi
 JOIN menu_items mi ON omi.menu_item_id = mi.id
+JOIN categories c ON mi.category_id = c.id
 WHERE omi.outlet_id = $1
 `
 
@@ -1585,6 +1602,8 @@ type ListOutletMenuItemsRow struct {
 	Variation           []byte         `json:"variation"`
 	Customizable        bool           `json:"customizable"`
 	Image               pgtype.Text    `json:"image"`
+	CategoryID          int32          `json:"category_id"`
+	CategoryName        string         `json:"category_name"`
 }
 
 func (q *Queries) ListOutletMenuItems(ctx context.Context, outletID int32) ([]ListOutletMenuItemsRow, error) {
@@ -1613,6 +1632,8 @@ func (q *Queries) ListOutletMenuItems(ctx context.Context, outletID int32) ([]Li
 			&i.Variation,
 			&i.Customizable,
 			&i.Image,
+			&i.CategoryID,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}
